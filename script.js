@@ -43,7 +43,7 @@ function resetButtonColors(quizDiv) {
   });
 } // end function resetButtonColors
 
-function checkAnswer(btn, isCorrect) {
+function checkAnswer(btn, isCorrect, unlockLessonId = "lesson3") {
   if (isCorrect) {
     correctAnswers++;
     btn.classList.add("correct");
@@ -61,7 +61,9 @@ function checkAnswer(btn, isCorrect) {
     } else {
       // End of quiz - show results inside the quizResults container
       const scorePercent = (correctAnswers / totalQuestions) * 100;
-      if (scorePercent >= 70) { unlockSidebarSection("lesson3"); } // Unlock sections if passed
+      if (scorePercent >= 70) { 
+        if (unlockLessonId) unlockSidebarSection(unlockLessonId);
+      } // Unlock sections if passed
       const resultsDiv = document.getElementById('quizResults');
       resultsDiv.innerHTML = `
         <h2>Quiz Completed!</h2>
@@ -111,8 +113,6 @@ function showLesson(lessonId) {
 
     const quizContainers = document.querySelectorAll('.quiz-container');
     quizContainers.forEach(div => div.style.display = 'none');
-
-    lessonItem.style.display = 'initial';
 
     const lessonContent = document.getElementById(lessonId + '_content');
     if (lessonContent) {

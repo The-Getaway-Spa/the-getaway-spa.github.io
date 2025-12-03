@@ -12,9 +12,15 @@
     <aside class="sidebar">
       <ul>
         <li onclick="showLesson('lesson1')">Lesson 1: Introduction</li>
-        <li onclick="showLesson('lesson2'); unlockSidebarSection('lesson2quiz')">Lesson 2: HTML Basics</li>
+        <li onclick="showLesson('lesson2'); unlockSidebarSection('lesson2quiz')">Lesson 2: Nail Basics</li>
         <li id = "lesson2quiz" class="locked" onclick="showLesson(this.id)">Lesson 2 Quiz</li>
-        <li id = "lesson3" class="locked" onclick="showLesson(this.id)">Lesson 4: JavaScript Basics</li>
+        <li id = "lesson3" class="locked" onclick="showLesson(this.id)">Lesson 3: Hair Basics</li>
+        <li id = "lesson4" class="locked" onclick="showLesson(this.id);
+          unlockSidebarSection('lesson3&4quiz')">Lesson 4: Hair No More</li>
+        <li id = "lesson3&4quiz" class="locked" onclick="showLesson(this.id)">Lesson 3 & 4 Quiz</li>
+        <li id = "final-exam-review" class="locked" onclick="showLesson(this.id);
+          unlockSidebarSection('final-exam')">Final Exam Review</li>
+        <li id = "final-exam" class="locked" onclick="showLesson(this.id)">Final Exam</li>
       </ul>
     </aside>
     <main class="content">
@@ -23,6 +29,7 @@
             <p>Select a lesson from the sidebar to get started.</p>
         </div>
 
+        <!-- lesson 1 -->
         <div id="lesson1" class="lesson-content" style="display:none;">
             <h1>Welcome to Lesson 1: Introduction!</h1>
             <p>In this lesson, you will learn the basics of painting nails.</p>
@@ -33,11 +40,14 @@
             </video>
         </div>
 
+        <!-- lesson 2 -->
         <div id="lesson2" class="lesson-content" style="display:none;">
-            <h1>This is Lesson 2: HTML Basics.</h1>
-
+            <h1>This is Lesson 2: Nail Basics.</h1>
+            <p>In this lesson, you will learn about basic HTML elements used in web development.</p>
+            <p>Nail polish comes in many different colors and is used to make your nails look pretty.</p>
         </div>
 
+        <!-- lesson 2 quiz -->
         <div id="lesson2quiz_content" class="quiz-container" style="display:none;">
             <h1>Lesson 2 Quiz!</h1>
                 <div id="introPage" style="text-align: center; padding: 30px;">
@@ -63,7 +73,89 @@
                 <div id="quizResults" style="padding: 20px; font-size: 1.2em;"></div>
         </div>
 
-        <div id="lesson3_content" class="lesson-content" style="display:none;">You made it to Lesson 3: CSS Styling!</div>
+        <!-- lesson 3 -->
+        <div id="lesson3_content" class="lesson-content" style="display:none;">
+            <h1>Welcome to Lesson 3: Hair Basics!</h1>
+            <p>In this lesson, you will learn the basics of styling hair.</p>
+
+            <video width="960" height="540" controls>
+	        <source src="videos/placeholder_hair.mp4" type="video/mp4">
+            Your browser does not support the video tag.
+            </video>
+        </div>
+
+        <!-- lesson 4 -->
+        <div id="lesson4_content" class="lesson-content" style="display:none;">
+            <h1>Welcome to Lesson 4: Hair No More!</h1>
+            <p>So now you know what to do with hair.</p>
+            <p>But what if your client DOESN'T have hair?!</p>
+            <br>
+            <p>Well, that's where we come in.</p>
+            <p>In this lesson, you will learn how to properly care for clients without hair.</p>
+
+            <video width="960" height="540" controls>
+	        <source src="videos/placeholder_bald.mp4" type="video/mp4">
+            Your browser does not support the video tag.
+            </video>
+        </div>
+
+        <!-- lesson 3 & 4 quiz -->
+        <div id="lesson3&4quiz_content" class="quiz-container" style="display:none;">
+            <h1>Lesson 3 & 4 Quiz!</h1>
+                <div id="introPage" style="text-align: center; padding: 30px;">
+                  <h2>Welcome to the Quiz!</h2>
+                  <p>Test your knowledge with this quiz.</p>
+                  <button id="startQuizBtn">Start Quiz</button>
+                </div>
+
+                <div class="quiz" style="display:none;">
+                    <p>Which of these is NOT a hair type?</p>
+                    <button onclick="checkAnswer(this,true)">Larry</button>
+                    <button onclick="checkAnswer(this,false)">Curly</button>
+                    <button onclick="checkAnswer(this,false)">Wavy</button>
+                    <button onclick="checkAnswer(this,false)">Straight</button>
+                </div>
+
+                <div class="quiz" style="display:none;">
+                    <p>Where does conditioner go?</p>
+                    <button onclick="checkAnswer(this,false)">on your belly</button>
+                    <button onclick="checkAnswer(this,false)">around your nose</button>
+                    <button onclick="checkAnswer(this,false)">on your knees</button>
+                    <button onclick="checkAnswer(this,true)">in your hair</button>
+                </div>
+
+                <div class="quiz" style="display:none;">
+                    <p>Your client asks for hair care service, but she is bald.<br>How should you respond?</p>
+                    <button onclick="checkAnswer(this,false)">call the police</button>
+                    <button onclick="checkAnswer(this,false)">tell her "tough luck!"</button>
+                    <button onclick="checkAnswer(this,true, 'lesson5')">provide her service anyway</button>
+                    <button onclick="checkAnswer(this,false)">offer a discount</button>
+                </div>
+
+                <div id="quizResults" style="padding: 20px; font-size: 1.2em;"></div>
+        </div>
+
+        <!-- final exam -->
+        <div id="final-exam-review_content" class="lesson-content" style="display:none;">
+            <h1>Welcome to the review before the final exam!</h1>
+            <p>Watch the video below to get a quick refresher before the final.</p>
+
+            <video width="960" height="540" controls>
+	            <source src="videos/placeholder_bald.mp4" type="video/mp4">
+              Your browser does not support the video tag.
+            </video>
+
+            <ul>Now, before you take final, here are some final tips:
+                <li>Make sure you have completed all lessons and quizzes.</li>
+                <li>Review any areas where you struggled during the quizzes.</li>
+                <li>Get a good night's sleep before the exam day.</li>
+                <li>Arrive at the exam location early to settle in.</li>
+            </ul>
+
+            <p>when, you are ready, click the button below to take the final exam!</p>
+            <button onclick="showLesson('final-exam')">Take Final Exam</button>
+        </div>
+
     </main>
   </div>
   <script src="script.js"></script>

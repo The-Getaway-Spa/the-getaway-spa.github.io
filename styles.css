@@ -12,15 +12,19 @@ body { font-family: Arial, sans-serif; background: #f4f4f4; }
   min-height: 100vh;
 }
 
+.sidebar::before {
+   content:url(images/logo.avif);
+}
+
 .sidebar {
-  background: #252a34;
+  background: #000000;
   color: #fff;
   width: 220px;
   padding: 32px 0 0 0;
   height: 100vh;          /* Full viewport height */
   overflow-y: auto;       /* Add vertical scrollbar if needed */
   display: inline;
-  min-height: 0;
+  min-height: 500;
 }
 
 .sidebar ul {
@@ -34,6 +38,7 @@ body { font-family: Arial, sans-serif; background: #f4f4f4; }
   cursor: pointer;
   border-radius: 6px;
   transition: background 0.2s;
+  line-height: 1.4; 
 }
 
 .sidebar li:hover {
