@@ -102,25 +102,21 @@ function showIfUnlocked(lessonId) {
 
 function showLesson(lessonId) {
   const lessonItem = document.getElementById(lessonId);
-  if (lessonItem.classList.contains('locked')) {
+  if (lessonItem && lessonItem.classList.contains('locked')) {
     alert('This lesson is locked. Please complete the previous lessons to unlock it.');
     return false;
-  } else {
-
-
-    const lessons = document.querySelectorAll('.lesson-content');
-    lessons.forEach(div => div.style.display = 'none');
-
-    const quizContainers = document.querySelectorAll('.quiz-container');
-    quizContainers.forEach(div => div.style.display = 'none');
-
-    const lessonContent = document.getElementById(lessonId + '_content');
-    if (lessonContent) {
-      lessonContent.style.display = 'block';
-    }
   }
-}
-// end function showLesson
+
+  // Hide all content areas
+  document.querySelectorAll('.lesson-content').forEach(div => div.style.display = 'none');
+  document.querySelectorAll('.quiz-container').forEach(div => div.style.display = 'none');
+
+  // Prefer the *_content element; if not found, use the base id
+  const contentEl = document.getElementById(lessonId + '_content') || document.getElementById(lessonId);
+  if (contentEl) {
+    contentEl.style.display = 'block';
+  }
+}// end function showLesson
 
 function unlockSidebarSection(SectionId) {
   const lockedItems = document.querySelectorAll('.sidebar .locked');
