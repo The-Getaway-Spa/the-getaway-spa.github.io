@@ -14,7 +14,8 @@
         <li onclick="showLesson('lesson1')">Lesson 1: Introduction</li>
         <li onclick="showLesson('lesson2'); unlockSidebarSection('lesson2quiz')">Lesson 2: Nail Basics</li>
         <li id = "lesson2quiz" class="locked" onclick="showLesson(this.id)">Lesson 2 Quiz</li>
-        <li id = "lesson3" class="locked" onclick="showLesson(this.id)">Lesson 3: Hair Basics</li>
+        <li id = "lesson3" class="locked" onclick="showLesson(this.id),
+          unlockSidebarSection('lesson4')">Lesson 3: Hair Basics</li>
         <li id = "lesson4" class="locked" onclick="showLesson(this.id);
           unlockSidebarSection('lesson3&4quiz')">Lesson 4: Hair No More</li>
         <li id = "lesson3&4quiz" class="locked" onclick="showLesson(this.id)">Lesson 3 & 4 Quiz</li>
@@ -53,7 +54,7 @@
                 <div id="introPage" style="text-align: center; padding: 30px;">
                   <h2>Welcome to the Quiz!</h2>
                   <p>Test your knowledge with this quiz.</p>
-                  <button id="startQuizBtn">Start Quiz</button>
+                  <button id="startQuizBtn" onclick="setTotalQuestions(2)">Start Quiz</button>
                 </div>
 
                 <div class="quiz" style="display:none;">
@@ -85,7 +86,7 @@
         </div>
 
         <!-- lesson 4 -->
-        <div id="lesson4_content" class="lesson-content" style="display:none;">
+        <div id="lesson4" class="lesson-content" style="display:none;">
             <h1>Welcome to Lesson 4: Hair No More!</h1>
             <p>So now you know what to do with hair.</p>
             <p>But what if your client DOESN'T have hair?!</p>

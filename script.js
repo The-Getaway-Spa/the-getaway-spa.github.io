@@ -24,6 +24,10 @@ playButton.addEventListener('click', function() {
  video.play();
 });
 
+function setTotalQuestions(numOfQuestions) {
+  totalQuestions = numOfQuestions;
+} // end function setTotalQuestions
+
 function resetQuiz() {
   // Reset scores and button colors
   correctAnswers = 0;
@@ -131,3 +135,30 @@ function unlockSidebarSection(SectionId) {
     }
   });
 }
+
+// Objects
+function Lesson(id, title, content) {
+  this.id = id;          // e.g. 'lesson1'
+  this.title = title;    // e.g. 'Introduction'
+  this.content = content; // not strictly needed if HTML is already on page
+}
+
+// Show the lesson div whose id matches this.id
+Lesson.prototype.openLesson = function () {
+  // Hide all lesson/quiz containers
+  document.querySelectorAll('.lesson-content, .quiz-container')
+    .forEach(div => div.style.display = 'none');
+
+  const el = document.getElementById(this.id + '_content') || document.getElementById(this.id);
+  if (el) {
+    el.style.display = 'block';
+  }
+};
+
+// Hide only this lesson’s content
+Lesson.prototype.closeLesson = function () {
+  const el = document.getElementById(this.id + '_content') || document.getElementById(this.id);
+  if (el) {
+    el.style.display = 'none';
+  }
+};
