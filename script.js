@@ -1,6 +1,7 @@
-// vairable declarations
+/// Variable declarations
 let totalQuestions = document.querySelectorAll('.quiz').length;
 let correctAnswers = 0;
+let currentLesson = null;
 
 // event listeners
 document.getElementById('startQuizBtn').addEventListener('click', () => {
@@ -13,7 +14,7 @@ document.getElementById('startQuizBtn').addEventListener('click', () => {
   resetQuiz();
 });
 
-// functions
+/// Functions
 
 // Source - https://stackoverflow.com/a
 // Posted by bharatadk
@@ -136,29 +137,33 @@ function unlockSidebarSection(SectionId) {
   });
 }
 
-// Objects
-function Lesson(id, title, content) {
-  this.id = id;          // e.g. 'lesson1'
-  this.title = title;    // e.g. 'Introduction'
-  this.content = content; // not strictly needed if HTML is already on page
+/// Objects
+function Lesson(id, title, contentPath) {
+  this.id = id;            // logical id, e.g. "lesson1"
+  this.title = title;      // display title
+  this.content = contentPath; // e.g. "lessons/lesson1.html"
 }
 
-// Show the lesson div whose id matches this.id
-Lesson.prototype.openLesson = function () {
-  // Hide all lesson/quiz containers
-  document.querySelectorAll('.lesson-content, .quiz-container')
-    .forEach(div => div.style.display = 'none');
+Lesson.prototype.openLesson = async function () {
+  const container = document.getElementById('lesson-container');
+  if (!container) return;
 
-  const el = document.getElementById(this.id + '_content') || document.getElementById(this.id);
-  if (el) {
-    el.style.display = 'block';
+  try {
+    const response = await fetch(this.content);
+    const html = await response.text();
+    container.innerHTML = html;
+  } catch (err) {
+    container.innerHTML = '<p>Sorry, this lesson could not be loaded.</p>';
   }
 };
 
-// Hide only this lesson’s content
 Lesson.prototype.closeLesson = function () {
-  const el = document.getElementById(this.id + '_content') || document.getElementById(this.id);
-  if (el) {
-    el.style.display = 'none';
+  const container = document.getElementById('lesson-container');
+  if (container) {
+    container.innerHTML = '';
   }
-};
+}; // end class Lesson
+
+// sample lessons
+const lesson1 = new Lesson('lesson1', 'Lesson 1: Introduction', 'lessons/lesson1.html');
+const lesson2 = new Lesson('lesson2', 'Lesson 2: Nail Basics', 'lessons/lesson2.html');

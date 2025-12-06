@@ -11,8 +11,8 @@
   <div class="flex-container">
     <aside class="sidebar">
       <ul>
-        <li onclick="showLesson('lesson1')">Lesson 1: Introduction</li>
-        <li onclick="showLesson('lesson2'); unlockSidebarSection('lesson2quiz')">Lesson 2: Nail Basics</li>
+        <li onclick="lesson1.openLesson()">Lesson 1: Introduction</li>
+        <li onclick="lesson2.openLesson(); unlockSidebarSection('lesson2quiz')">Lesson 2: Nail Basics</li>
         <li id = "lesson2quiz" class="locked" onclick="showLesson(this.id)">Lesson 2 Quiz</li>
         <li id = "lesson3" class="locked" onclick="showLesson(this.id),
           unlockSidebarSection('lesson4')">Lesson 3: Hair Basics</li>
@@ -31,15 +31,7 @@
         </div>
 
         <!-- lesson 1 -->
-        <div id="lesson1" class="lesson-content" style="display:none;">
-            <h1>Welcome to Lesson 1: Introduction!</h1>
-            <p>In this lesson, you will learn the basics of painting nails.</p>
-
-            <video width="640" height="480" controls>
-	        <source src="videos/placeholder.mp4" type="video/mp4">
-            Your browser does not support the video tag.
-            </video>
-        </div>
+        <div id="lesson-container"></div>
 
         <!-- lesson 2 -->
         <div id="lesson2" class="lesson-content" style="display:none;">
