@@ -13,9 +13,12 @@
       <ul>
         <li onclick="lesson1.openLesson()">Lesson 1: Introduction</li>
         <li onclick="lesson2.openLesson(); unlockSidebarSection('lesson2quiz')">Lesson 2: Nail Basics</li>
-        <li id = "lesson2quiz" class="locked" onclick="showLesson(this.id)">Lesson 2 Quiz</li>
-        <li id = "lesson3" class="locked" onclick="showLesson(this.id),
-          unlockSidebarSection('lesson4')">Lesson 3: Hair Basics</li>
+        <li id="lesson2quiz" onclick="lesson2Quiz.render();">
+          Lesson 2 Quiz
+        </li>
+        <li id = "lesson3" class="locked" onclick="showLesson(this.id), unlockSidebarSection('lesson4')">
+          Lesson 3: Hair Basics
+        </li>
         <li id = "lesson4" class="locked" onclick="showLesson(this.id);
           unlockSidebarSection('lesson3&4quiz')">Lesson 4: Hair No More</li>
         <li id = "lesson3&4quiz" class="locked" onclick="showLesson(this.id)">Lesson 3 & 4 Quiz</li>
@@ -35,36 +38,11 @@
 
         <!-- lesson 2 -->
         <div id="lesson2" class="lesson-content" style="display:none;">
-            <h1>This is Lesson 2: Nail Basics.</h1>
-            <p>In this lesson, you will learn about basic HTML elements used in web development.</p>
-            <p>Nail polish comes in many different colors and is used to make your nails look pretty.</p>
+
         </div>
 
         <!-- lesson 2 quiz -->
-        <div id="lesson2quiz_content" class="quiz-container" style="display:none;">
-            <h1>Lesson 2 Quiz!</h1>
-                <div id="introPage" style="text-align: center; padding: 30px;">
-                  <h2>Welcome to the Quiz!</h2>
-                  <p>Test your knowledge with this quiz.</p>
-                  <button id="startQuizBtn" onclick="setTotalQuestions(2)">Start Quiz</button>
-                </div>
-
-                <div class="quiz" style="display:none;">
-                    <p>What is nail polish used for?</p>
-                    <button onclick="checkAnswer(this,true)">Painting nails</button>
-                    <button onclick="checkAnswer(this,false)">Facial treatment</button>
-                    <button onclick="checkAnswer(this,false)">Skin care</button>
-                </div>
-
-                <div class="quiz" style="display:none;">
-                    <p>Where does shampoo go?</p>
-                    <button onclick="checkAnswer(this,false)">on your back</button>
-                    <button onclick="checkAnswer(this,false)">between your fingers</button>
-                    <button onclick="checkAnswer(this,true)">in your hair</button>
-                </div>
-
-                <div id="quizResults" style="padding: 20px; font-size: 1.2em;"></div>
-        </div>
+        <div id="lesson2quiz_content" class="quiz-container" style="display:none;"></div>
 
         <!-- lesson 3 -->
         <div id="lesson3_content" class="lesson-content" style="display:none;">

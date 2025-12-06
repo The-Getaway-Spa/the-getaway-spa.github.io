@@ -137,7 +137,10 @@ function unlockSidebarSection(SectionId) {
   });
 }
 
+
 /// Objects
+
+// Lesson class
 function Lesson(id, title, contentPath) {
   this.id = id;            // logical id, e.g. "lesson1"
   this.title = title;      // display title
@@ -145,6 +148,10 @@ function Lesson(id, title, contentPath) {
 }
 
 Lesson.prototype.openLesson = async function () {
+  // Hide quizzes / other lesson content
+  document.querySelectorAll('.lesson-content').forEach(div => div.style.display = 'none');
+  document.querySelectorAll('.quiz-container').forEach(div => div.style.display = 'none');
+
   const container = document.getElementById('lesson-container');
   if (!container) return;
 
@@ -162,8 +169,117 @@ Lesson.prototype.closeLesson = function () {
   if (container) {
     container.innerHTML = '';
   }
-}; // end class Lesson
+};
+// end class Lesson
+
+// Quiz class
+function Quiz(id, passPercent, unlockLessonId) {
+  this.id = id;                    // e.g. 'lesson2quiz'
+  this.passPercent = passPercent;  // e.g. 70
+  this.unlockLessonId = unlockLessonId || null;
+  this.questions = [];
+}
+
+Quiz.prototype.addQuestion = function (text, answers) {
+  // answers: [{ text: 'Painting nails', isCorrect: true }, ...]
+  this.questions.push({ text, answers });
+};
+
+Quiz.prototype.render = function () {
+  //alert(`Rendering quiz: ${this.id}`);
+
+  // Hide other content
+  //document.querySelectorAll('.lesson-content').forEach(div => div.style.display = 'none');
+  //document.querySelectorAll('.quiz-container').forEach(div => div.style.display = 'none');
+
+  const lesson_container = document.getElementById('lesson-container');
+  if (lesson_container) {
+    //alert('Clearing lesson container for quiz rendering.');
+    lesson_container.innerHTML = '';
+  }
+
+  const quiz_container = document.querySelector('.quiz-container');
+  if (!quiz_container) {
+    alert('Quiz container not found!');
+    return;
+  } else {
+    alert('Quiz container was found!');
+  }
+
+  // Clear old quiz
+  quiz_container.innerHTML = '';
+
+  // Intro / start button (optional; you can reuse your existing introPage markup)
+  lesson_container.innerHTML = `
+    <div id="introPage" style="text-align:center; padding:30px;">
+      <h2>Welcome to the Quiz!</h2>
+      <p>Test your knowledge with this quiz.</p>
+      <button id="startQuizBtn">Start Quiz</button>
+    </div>
+    <div id="quizResults" style="padding:20px; font-size:1.2em;"></div>
+  `;
+
+  // Create question blocks
+  this.questions.forEach((q, index) => {
+    const qDiv = document.createElement('div');
+    qDiv.className = 'quiz';
+    qDiv.style.display = 'none';
+    qDiv.innerHTML = `<p>${q.text}</p>`;
+
+    q.answers.forEach(ans => {
+      const btn = document.createElement('button');
+      btn.textContent = ans.text;
+      btn.onclick = () => checkAnswer(btn, ans.isCorrect, this.unlockLessonId);
+      qDiv.appendChild(btn);
+    });
+
+    container.insertBefore(qDiv, document.getElementById('quizResults'));
+  });
+
+  // Re‑wire start button and totals
+  const startBtn = document.getElementById('startQuizBtn');
+  startBtn.addEventListener('click', () => {
+    document.getElementById('introPage').style.display = 'none';
+    document.querySelector('.quiz').style.display = 'block';
+    setTotalQuestions(this.questions.length);
+    resetQuiz();
+  });
+};
+// end class Quiz
+
+
+/// Object instances
 
 // sample lessons
 const lesson1 = new Lesson('lesson1', 'Lesson 1: Introduction', 'lessons/lesson1.html');
 const lesson2 = new Lesson('lesson2', 'Lesson 2: Nail Basics', 'lessons/lesson2.html');
+
+// sample quizzes
+// lesson 2 quiz
+const lesson2Quiz = new Quiz('lesson2quiz', 70, 'lesson3');
+lesson2Quiz.addQuestion('What is nail polish used for?', [
+  { text: 'Painting nails',   isCorrect: true },
+  { text: 'Facial treatment', isCorrect: false },
+  { text: 'Skin care',        isCorrect: false }
+]);
+
+lesson2Quiz.addQuestion('Where does shampoo go?', [
+  { text: 'on your back',          isCorrect: false },
+  { text: 'between your fingers',  isCorrect: false },
+  { text: 'in your hair',          isCorrect: true }
+]);
+// lesson 3+4 quiz
+const lesson3plus4Quiz = new Quiz('lesson3+4Quiz', 70, 'lesson3');
+lesson3plus4Quiz.addQuestion('What is nail polish used for?', [
+  { text: 'Painting nails',   isCorrect: true },
+  { text: 'Facial treatment', isCorrect: false },
+  { text: 'Skin care',        isCorrect: false }
+]);
+
+lesson3plus4Quiz.addQuestion('Where does shampoo go?', [
+  { text: 'on your back',          isCorrect: false },
+  { text: 'between your fingers',  isCorrect: false },
+  { text: 'in your hair',          isCorrect: true }
+]);
+
+// You can create lesson3+4 quiz the same way with its own questions
