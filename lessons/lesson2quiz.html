@@ -1,0 +1,468 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Lesson 2 Quiz - Nail Basics</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+        }
+
+        .quiz-container {
+            background: white;
+            border-radius: 10px;
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.3);
+            max-width: 700px;
+            width: 100%;
+            padding: 40px;
+        }
+
+        .quiz-header {
+            text-align: center;
+            margin-bottom: 30px;
+            border-bottom: 3px solid #667eea;
+            padding-bottom: 20px;
+        }
+
+        .quiz-header h1 {
+            color: #333;
+            margin-bottom: 10px;
+            font-size: 28px;
+        }
+
+        .quiz-header p {
+            color: #666;
+            font-size: 16px;
+        }
+
+        .progress-bar {
+            width: 100%;
+            height: 8px;
+            background: #e0e0e0;
+            border-radius: 10px;
+            margin: 20px 0;
+            overflow: hidden;
+        }
+
+        .progress-fill {
+            height: 100%;
+            background: #667eea;
+            transition: width 0.3s ease;
+        }
+
+        .question-container {
+            margin: 30px 0;
+        }
+
+        .question-number {
+            color: #667eea;
+            font-weight: bold;
+            font-size: 14px;
+            margin-bottom: 8px;
+        }
+
+        .question-text {
+            color: #333;
+            font-size: 18px;
+            font-weight: 600;
+            margin-bottom: 20px;
+        }
+
+        .options {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+
+        .option {
+            display: flex;
+            align-items: center;
+            padding: 15px;
+            border: 2px solid #e0e0e0;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            background: white;
+        }
+
+        .option:hover {
+            border-color: #667eea;
+            background: #f8f9ff;
+        }
+
+        .option input[type="radio"] {
+            margin-right: 12px;
+            cursor: pointer;
+            width: 18px;
+            height: 18px;
+        }
+
+        .option label {
+            cursor: pointer;
+            flex-grow: 1;
+            font-size: 16px;
+            color: #333;
+        }
+
+        .option.selected {
+            border-color: #667eea;
+            background: #f0f4ff;
+        }
+
+        .option.correct {
+            border-color: #4caf50;
+            background: #f1f8f4;
+        }
+
+        .option.incorrect {
+            border-color: #f44336;
+            background: #fef5f5;
+        }
+
+        .button-group {
+            display: flex;
+            gap: 15px;
+            margin-top: 30px;
+            justify-content: space-between;
+        }
+
+        button {
+            padding: 12px 30px;
+            border: none;
+            border-radius: 8px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .btn-next {
+            background: #667eea;
+            color: white;
+            flex-grow: 1;
+            margin-left: auto;
+        }
+
+        .btn-next:hover:not(:disabled) {
+            background: #764ba2;
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
+        }
+
+        .btn-next:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+            opacity: 0.6;
+        }
+
+        .btn-prev {
+            background: #ddd;
+            color: #333;
+        }
+
+        .btn-prev:hover:not(:disabled) {
+            background: #ccc;
+            transform: translateY(-2px);
+        }
+
+        .btn-prev:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        .results-container {
+            text-align: center;
+            display: none;
+        }
+
+        .results-container.show {
+            display: block;
+        }
+
+        .results-score {
+            font-size: 48px;
+            color: #667eea;
+            font-weight: bold;
+            margin: 20px 0;
+        }
+
+        .results-message {
+            font-size: 24px;
+            color: #333;
+            margin: 15px 0;
+        }
+
+        .results-details {
+            background: #f5f5f5;
+            padding: 20px;
+            border-radius: 8px;
+            margin: 20px 0;
+            text-align: left;
+        }
+
+        .result-item {
+            padding: 12px 0;
+            border-bottom: 1px solid #ddd;
+        }
+
+        .result-item:last-child {
+            border-bottom: none;
+        }
+
+        .result-item-question {
+            font-weight: 600;
+            color: #333;
+            margin-bottom: 5px;
+        }
+
+        .result-item-answer {
+            color: #666;
+            font-size: 14px;
+        }
+
+        .result-item.correct .result-item-answer::before {
+            content: "✓ ";
+            color: #4caf50;
+            font-weight: bold;
+        }
+
+        .result-item.incorrect .result-item-answer::before {
+            content: "✗ ";
+            color: #f44336;
+            font-weight: bold;
+        }
+
+        .btn-restart {
+            background: #4caf50;
+            color: white;
+            padding: 12px 40px;
+            margin-top: 20px;
+        }
+
+        .btn-restart:hover {
+            background: #45a049;
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(76, 175, 80, 0.4);
+        }
+    </style>
+</head>
+<body>
+    <div class="quiz-container">
+        <div class="quiz-header">
+            <h1>Lesson 2 Quiz - Nail Basics</h1>
+            <p>Test your knowledge of nail basics</p>
+        </div>
+
+        <div class="progress-bar">
+            <div class="progress-fill" id="progressFill"></div>
+        </div>
+
+        <div id="quizContent">
+            <div class="question-container" id="questionContainer"></div>
+            <div class="button-group">
+                <button class="btn-prev" id="prevBtn" onclick="previousQuestion()">← Previous</button>
+                <button class="btn-next" id="nextBtn" onclick="nextQuestion()">Next →</button>
+            </div>
+        </div>
+
+        <div class="results-container" id="resultsContainer">
+            <h2>Quiz Complete!</h2>
+            <div class="results-score" id="scoreDisplay"></div>
+            <div class="results-message" id="messageDisplay"></div>
+            <div class="results-details" id="resultsDetails"></div>
+            <button class="btn-restart" onclick="restartQuiz()">Retake Quiz</button>
+        </div>
+    </div>
+
+    <script>
+        // Quiz Questions Data
+        const quizData = [
+            {
+                question: "What is the primary purpose of nail primers?",
+                options: [
+                    "To add shine to the nails",
+                    "To help polish adhere better and last longer",
+                    "To make nails grow faster",
+                    "To prevent nail discoloration"
+                ],
+                correct: 1
+            },
+            {
+                question: "Which of the following is a proper nail health practice?",
+                options: [
+                    "Filing nails in a sawing motion back and forth",
+                    "Using metal files instead of glass files",
+                    "Filing nails in one direction from edge to center",
+                    "Filing nails when they are wet"
+                ],
+                correct: 2
+            },
+            {
+                question: "What does UV gel typically require for curing?",
+                options: [
+                    "Air drying for 24 hours",
+                    "Exposure to UV or LED light",
+                    "Heating with a blow dryer",
+                    "Soaking in water"
+                ],
+                correct: 1
+            }
+        ];
+
+        let currentQuestion = 0;
+        let answers = [];
+        let quizStarted = false;
+
+        // Initialize quiz
+        function initializeQuiz() {
+            answers = new Array(quizData.length).fill(null);
+            currentQuestion = 0;
+            quizStarted = true;
+            document.getElementById('quizContent').style.display = 'block';
+            document.getElementById('resultsContainer').classList.remove('show');
+            displayQuestion();
+        }
+
+        // Display current question
+        function displayQuestion() {
+            const question = quizData[currentQuestion];
+            const questionContainer = document.getElementById('questionContainer');
+            
+            let optionsHTML = question.options.map((option, index) => `
+                <div class="option ${answers[currentQuestion] === index ? 'selected' : ''}" onclick="selectAnswer(${index})">
+                    <input type="radio" id="option${index}" name="options" value="${index}" ${answers[currentQuestion] === index ? 'checked' : ''}>
+                    <label for="option${index}">${option}</label>
+                </div>
+            `).join('');
+
+            questionContainer.innerHTML = `
+                <div class="question-number">Question ${currentQuestion + 1} of ${quizData.length}</div>
+                <div class="question-text">${question.question}</div>
+                <div class="options">${optionsHTML}</div>
+            `;
+
+            updateButtons();
+            updateProgress();
+        }
+
+        // Select an answer
+        function selectAnswer(index) {
+            answers[currentQuestion] = index;
+            displayQuestion();
+        }
+
+        // Next question
+        function nextQuestion() {
+            if (answers[currentQuestion] === null) {
+                alert('Please select an answer before continuing.');
+                return;
+            }
+            
+            if (currentQuestion < quizData.length - 1) {
+                currentQuestion++;
+                displayQuestion();
+            } else {
+                showResults();
+            }
+        }
+
+        // Previous question
+        function previousQuestion() {
+            if (currentQuestion > 0) {
+                currentQuestion--;
+                displayQuestion();
+            }
+        }
+
+        // Update button states
+        function updateButtons() {
+            document.getElementById('prevBtn').disabled = currentQuestion === 0;
+            document.getElementById('nextBtn').textContent = 
+                currentQuestion === quizData.length - 1 ? 'Submit Quiz' : 'Next →';
+        }
+
+        // Update progress bar
+        function updateProgress() {
+            const progress = ((currentQuestion + 1) / quizData.length) * 100;
+            document.getElementById('progressFill').style.width = progress + '%';
+        }
+
+        // Calculate and show results
+        function showResults() {
+            let correct = 0;
+            const resultsDetails = [];
+
+            answers.forEach((answer, index) => {
+                if (answer === quizData[index].correct) {
+                    correct++;
+                    resultsDetails.push({
+                        question: quizData[index].question,
+                        isCorrect: true,
+                        userAnswer: quizData[index].options[answer]
+                    });
+                } else {
+                    resultsDetails.push({
+                        question: quizData[index].question,
+                        isCorrect: false,
+                        userAnswer: quizData[index].options[answer],
+                        correctAnswer: quizData[index].options[quizData[index].correct]
+                    });
+                }
+            });
+
+            const percentage = Math.round((correct / quizData.length) * 100);
+            
+            // Display score
+            document.getElementById('scoreDisplay').textContent = `${percentage}%`;
+            
+            // Display message
+            let message = '';
+            if (percentage === 100) {
+                message = 'Perfect Score! Excellent work!';
+            } else if (percentage >= 80) {
+                message = 'Great Job! You passed the quiz!';
+            } else if (percentage >= 60) {
+                message = 'Good Effort! Review the material and try again.';
+            } else {
+                message = 'Keep Learning! Review the lesson and retake the quiz.';
+            }
+            document.getElementById('messageDisplay').textContent = message;
+
+            // Display detailed results
+            let detailsHTML = resultsDetails.map((result, index) => `
+                <div class="result-item ${result.isCorrect ? 'correct' : 'incorrect'}">
+                    <div class="result-item-question">Q${index + 1}: ${result.question}</div>
+                    <div class="result-item-answer">Your answer: ${result.userAnswer}</div>
+                    ${!result.isCorrect ? `<div class="result-item-answer" style="color: #4caf50;">Correct answer: ${result.correctAnswer}</div>` : ''}
+                </div>
+            `).join('');
+            document.getElementById('resultsDetails').innerHTML = detailsHTML;
+
+            // Show results container
+            document.getElementById('quizContent').style.display = 'none';
+            document.getElementById('resultsContainer').classList.add('show');
+        }
+
+        // Restart quiz
+        function restartQuiz() {
+            initializeQuiz();
+        }
+
+        // Start quiz on page load
+        window.addEventListener('DOMContentLoaded', initializeQuiz);
+    </script>
+</body>
+</html>

@@ -13,7 +13,7 @@
       <ul>
         <li onclick="lesson1.openLesson()">Lesson 1: Introduction</li>
         <li onclick="lesson2.openLesson(); unlockSidebarSection('lesson2quiz')">Lesson 2: Nail Basics</li>
-        <li id="lesson2quiz" onclick="lesson2Quiz.render();">
+        <li id = "lesson2quiz" class="locked" onclick="showLesson(this.id)">
           Lesson 2 Quiz
         </li>
         <li id = "lesson3" class="locked" onclick="showLesson(this.id), unlockSidebarSection('lesson4')">

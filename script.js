@@ -25,6 +25,25 @@ playButton.addEventListener('click', function() {
  video.play();
 });
 
+function unlockSidebarSection(sectionId) {
+  /*const item = document.getElementById(sectionId);
+  if (!item) {
+    alert('Sidebar item not found: ' + sectionId);
+    return;
+  }
+  else {
+    alert('Unlocking lesson: ' + sectionId);
+  }
+
+  item.classList.remove('locked');
+  item.style.color = '';
+  item.style.cursor = 'pointer';
+  item.onclick = function () {
+    alert('Unlocking and showing lesson: ' + sectionId);
+    showLesson('sectionId');
+  };*/
+} // end function unlockSidebarSection
+
 function setTotalQuestions(numOfQuestions) {
   totalQuestions = numOfQuestions;
 } // end function setTotalQuestions
@@ -148,10 +167,10 @@ function Lesson(id, title, contentPath) {
 }
 
 Lesson.prototype.openLesson = async function () {
-  // Hide quizzes / other lesson content
-  document.querySelectorAll('.lesson-content').forEach(div => div.style.display = 'none');
-  document.querySelectorAll('.quiz-container').forEach(div => div.style.display = 'none');
+  // unlock this lesson in the sidebar
+  unlockLessonInSidebar(this.id);
 
+  // hide other content if needed, then load HTML as you already do
   const container = document.getElementById('lesson-container');
   if (!container) return;
 
@@ -203,7 +222,7 @@ Quiz.prototype.render = function () {
     alert('Quiz container not found!');
     return;
   } else {
-    alert('Quiz container was found!');
+    //alert('Quiz container was found!');
   }
 
   // Clear old quiz
