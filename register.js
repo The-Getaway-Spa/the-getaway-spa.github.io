@@ -31,9 +31,9 @@ const loginPassword = document.getElementById('login-password');
 const submit = document.getElementById('submit');
 const status = document.getElementById('login-status');
 
-// Login button click handler
-submit.addEventListener('click', async function(event) {
-  event.preventDefault();
+// Reusable login handler used by click and Enter key
+async function handleLogin(event) {
+  if (event && typeof event.preventDefault === 'function') event.preventDefault();
   const email = loginEmail.value.trim();
   const password = loginPassword.value;
 
@@ -48,12 +48,24 @@ submit.addEventListener('click', async function(event) {
   try {
     // Attempt to sign in with Firebase Auth
     const userCredential = await signInWithEmailAndPassword(auth, email, password);
-    // If successful, redirect to index.html
+    // If successful, redirect to main page
     window.location.href = 'main.html';
   } catch (error) {
     // On error, show a friendly message. Do not leak internal error details to the user.
     console.error('Firebase sign-in failed:', error);
-    //alert('Login failed. Please check your email and password and try again.');
     status.textContent = 'Email and/or password are incorrect.';
   }
+}
+
+// Wire up click to the handler
+submit.addEventListener('click', handleLogin);
+
+// Trigger same handler when user presses Enter in the email or password inputs
+[loginEmail, loginPassword].forEach(function(el) {
+  if (!el) return;
+  el.addEventListener('keydown', function(e) {
+    if (e.key === 'Enter') {
+      handleLogin(e);
+    }
+  });
 });
