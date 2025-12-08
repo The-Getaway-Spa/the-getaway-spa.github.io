@@ -1,3 +1,71 @@
+/// Firebase Authentication Setup
+import { initializeApp } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-app.js";
+import {
+  getAuth,
+  signInWithEmailAndPassword,
+  signOut,
+  onAuthStateChanged
+} from "https://www.gstatic.com/firebasejs/9.23.0/firebase-auth.js";
+
+const firebaseConfig = {
+  apiKey: "YOUR_API_KEY",
+  authDomain: "the-getaway-academy.firebaseapp.com",
+  projectId: "the-getaway-academy",
+  appId: "YOUR_APP_ID"
+};
+
+const app = initializeApp(firebaseConfig);
+const auth = getAuth(app);
+
+const ADMIN_EMAILS = ["admin@example.com"]; // change to your admin
+
+const emailInput  = document.getElementById("login-email");
+const passInput   = document.getElementById("login-password");
+const loginBtn    = document.getElementById("login-btn");
+const logoutBtn   = document.getElementById("logout-btn");
+const statusP     = document.getElementById("login-status");
+
+function isAdmin(user) {
+  return user && ADMIN_EMAILS.includes(user.email);
+}
+
+loginBtn.addEventListener("click", async () => {
+  const email = emailInput.value.trim();
+  const password = passInput.value;
+
+  try {
+    await signInWithEmailAndPassword(auth, email, password);
+    statusP.textContent = "Login successful, redirecting...";
+    // save a flag for main.html
+    sessionStorage.setItem("loggedIn", "true");
+    sessionStorage.setItem("email", email);
+    sessionStorage.setItem("isAdmin", isAdmin(auth.currentUser) ? "true" : "false");
+    // redirect to main page
+    window.location.href = "main.html";
+  } catch (err) {
+    console.error(err);
+    statusP.textContent = "Login failed.";
+  }
+});
+
+logoutBtn.addEventListener("click", async () => {
+  await signOut(auth);
+  sessionStorage.clear();
+});
+
+onAuthStateChanged(auth, user => {
+  if (user) {
+    statusP.textContent = `Logged in as: ${user.email}`;
+    loginBtn.style.display  = "none";
+    logoutBtn.style.display = "inline-block";
+  } else {
+    statusP.textContent = "Not logged in.";
+    loginBtn.style.display  = "inline-block";
+    logoutBtn.style.display = "none";
+  }
+});
+
+
 /// Variable declarations
 let totalQuestions = document.querySelectorAll('.quiz').length;
 let correctAnswers = 0;
@@ -167,6 +235,8 @@ function Lesson(id, title, contentPath) {
 }
 
 Lesson.prototype.openLesson = async function () {
+  //alert(`Opening lesson: ${this.id}`);
+
   // unlock this lesson in the sidebar
   unlockLessonInSidebar(this.id);
 
