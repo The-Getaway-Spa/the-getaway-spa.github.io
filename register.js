@@ -32,17 +32,28 @@ const submit = document.getElementById('submit');
 const status = document.getElementById('login-status');
 
 // Login button click handler
-submit.addEventListener('click', function(event) {
-    event.preventDefault();
-    const email = loginEmail.value;
-    const password = loginPassword.value;
-    
-    if (!email || !password) {
-        status.textContent = 'Please enter email and password';
-        return;
-    }
-    
-    // Firebase login (import auth first, see below)
-    //alert('Login button clicked - Firebase login triggered!');
-    status.textContent = 'Login attempt started...';
+submit.addEventListener('click', async function(event) {
+  event.preventDefault();
+  const email = loginEmail.value.trim();
+  const password = loginPassword.value;
+
+  if (!email || !password) {
+    status.textContent = 'Please enter email and password';
+    return;
+  }
+
+  // Start login attempt
+  status.textContent = 'Logging in...';
+
+  try {
+    // Attempt to sign in with Firebase Auth
+    const userCredential = await signInWithEmailAndPassword(auth, email, password);
+    // If successful, redirect to index.html
+    window.location.href = 'main.html';
+  } catch (error) {
+    // On error, show a friendly message. Do not leak internal error details to the user.
+    console.error('Firebase sign-in failed:', error);
+    //alert('Login failed. Please check your email and password and try again.');
+    status.textContent = 'Email and/or password are incorrect.';
+  }
 });
