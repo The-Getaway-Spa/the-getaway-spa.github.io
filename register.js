@@ -55,6 +55,10 @@ async function handleLogin(event) {
     // Attempt to sign in with Firebase Auth
     const userCredential = await signInWithEmailAndPassword(auth, email, password);
     // If successful, redirect to main page
+    if (isAdminEmail(email)) {
+      alert('Admin login detected');
+      sessionStorage.setItem('isAdmin', 'true');
+    }
     window.location.href = 'main.html';
   } catch (error) {
     // On error, show a friendly message. Do not leak internal error details to the user.
