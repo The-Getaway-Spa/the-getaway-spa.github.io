@@ -39,7 +39,18 @@ function createLessonListItem(lesson) {
 
   const titleSpan = document.createElement("span");
   titleSpan.textContent = lesson.title;
-  titleSpan.onclick = () => loadLessonContent(lesson);
+  titleSpan.onclick = () => {
+    // 1) clear selection from all items
+    document
+      .querySelectorAll(".sidebar ul li.selected")
+      .forEach(el => el.classList.remove("selected"));
+
+    // 2) mark this one as selected
+    li.classList.add("selected");
+
+    // 3) load the lesson content as you already do
+    loadLessonContent(lesson);
+  };
 
   const removeBtn = document.createElement("button");
   removeBtn.textContent = "✕";

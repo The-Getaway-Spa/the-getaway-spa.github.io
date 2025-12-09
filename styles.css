@@ -102,6 +102,12 @@ body { font-family: Arial, sans-serif; background: #f4f4f4; }
   align-items: center;
 }
 
+/* Selected lesson in sidebar */
+.sidebar ul li.selected {
+  background: #2196f3;     /* blue highlight */
+  color: #ffffff;
+}
+
 /* Remove button: hidden by default */
 .sidebar .remove-lesson-btn {
   display: none;
