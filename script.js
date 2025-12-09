@@ -1,5 +1,8 @@
 // script.js — used on main.html only
 
+const API_BASE = "https://the-getaway-academy.onrender.com";
+const role = sessionStorage.getItem("role");
+
 // --------------------
 // Auth / role handling
 // --------------------
@@ -10,7 +13,6 @@ if (sessionStorage.getItem('loggedIn') !== 'true') {
 }
 
 // Read role set by register.js ('admin' or 'student')
-const role = sessionStorage.getItem('role');
 const adminBadge = document.getElementById('admin-badge');
 if (role === 'admin' && adminBadge) {
   adminBadge.style.display = 'block';   // show ADMIN MODE
@@ -55,60 +57,62 @@ function createLessonListItem(lesson) {
   return li;
 }
 
-function removeLesson(lessonId, liElement) {
-  // Remove from sidebar
+async function removeLesson(lessonId, liElement) {
+  if (!confirm("Remove this lesson?")) return;
+
+  const res = await fetch(`${API_BASE}/api/lessons/${encodeURIComponent(lessonId)}`, {
+    method: "DELETE",
+    headers: {
+      "X-User-Role": role
+    }
+  });
+
+  if (!res.ok && res.status !== 204) {
+    alert("Failed to remove lesson.");
+    return;
+  }
+
+  // Remove from DOM
   if (liElement && liElement.parentNode) {
     liElement.parentNode.removeChild(liElement);
   }
-
-  // Remove corresponding content div if it exists
   const contentEl = document.getElementById(lessonId);
   if (contentEl && contentEl.parentNode) {
     contentEl.parentNode.removeChild(contentEl);
   }
-
-  // Optional: remove from in-memory lessons array
-  const index = lessons.findIndex(l => l.id === lessonId);
-  if (index !== -1) {
-    lessons.splice(index, 1);
-  }
-}
+} // end method removeLesson
 
 // When admin clicks "+ Add Lesson"
-if (addLessonBtn && role === 'admin') {
-  addLessonBtn.addEventListener('click', () => {
-    const title = prompt('Enter a title for the new lesson:');
+if (addLessonBtn && role === "admin") {
+  addLessonBtn.addEventListener("click", async () => {
+    const title = prompt("Enter a title for the new lesson:");
     if (!title) return;
 
-    // create a simple id from the title
-    const idBase = title.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9\-]/g, '');
-    const id = idBase || `lesson-${lessons.length + 1}`;
+    const path = prompt("Enter the path to the lesson HTML (e.g. lessons/lesson3.html):");
+    if (!path) return;
 
-    const newLesson = {
-      id,
-      title,
-    };
-    lessons.push(newLesson);
+    const body = { title, path };
 
-    // add to sidebar
-    const li = createLessonListItem(newLesson);
-    lessonList.appendChild(li);
+    const res = await fetch(`${API_BASE}/api/lessons`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "X-User-Role": role
+      },
+      body: JSON.stringify(body)
+    });
 
-    // optionally create a placeholder content div
-    const content = document.createElement('div');
-    content.id = id;
-    content.className = 'lesson-content';
-    content.style.display = 'none';
-    content.innerHTML = `
-      <h1>${title}</h1>
-      <p>This is a new lesson created by the admin.</p>
-    `;
-    const contentArea = document.querySelector('main .content');
-    if (contentArea) {
-      contentArea.appendChild(content);
+    if (!res.ok) {
+      alert("Failed to create lesson.");
+      return;
     }
+
+    const savedLesson = await res.json();
+    const li = createLessonListItem(savedLesson);
+    lessonList.appendChild(li);
   });
 }
+
 
 // --------------------
 // Quiz / lesson logic
@@ -340,35 +344,17 @@ Quiz.prototype.render = function () {
   }
 };
 
-const API_BASE = "https://the-getaway-academy.onrender.com";
-
 async function loadSidebarLessons() {
-  try {
-    const res = await fetch(`${API_BASE}/api/lessons`);
-    const lessons = await res.json();
+  const lessonList = document.getElementById("lesson-list");
+  lessonList.innerHTML = "";
 
-    const lessonList = document.getElementById("lesson-list");
-    lessonList.innerHTML = "";
+  const res = await fetch(`${API_BASE}/api/lessons`);
+  const lessons = await res.json();
 
-    lessons.forEach(lesson => {
-      const li = document.createElement("li");
-      li.textContent = lesson.title;
-      li.onclick = () => loadLessonContent(lesson);
-      lessonList.appendChild(li);
-    });
-  } catch (err) {
-    console.error("Failed to load lessons:", err);
-  }
-}
-
-function loadLessonContent(lesson) {
-  // lesson.path could be a URL your backend serves, or a static path
-  fetch(lesson.path)
-    .then(r => r.text())
-    .then(html => {
-      const container = document.getElementById("lesson-container");
-      container.innerHTML = html;
-    });
+  lessons.forEach(lesson => {
+    const li = createLessonListItem(lesson);
+    lessonList.appendChild(li);
+  });
 }
 
 // Call this after you verify user is logged in
