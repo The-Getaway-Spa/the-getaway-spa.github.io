@@ -13,13 +13,14 @@
   </div>
 
   <div class="flex-container">
-    <aside class="sidebar">
-      <ul>
-        <!-- Sidebar navigation will be populated here -->
-        <!-- TODO: list available lessons that can be added and deleted only by the admin account-->
-         <!-- TODO: normal users and guest accounts will be able to see this list and select from it but will not be able to edit it-->
-      </ul>
-    </aside>
+<aside class="sidebar">
+  <div id="admin-controls" style="display:none;">
+    <button id="add-lesson-btn">+ Add Lesson</button>
+  </div>
+  <ul id="lesson-list">
+    <!-- existing lessons can go here if you want -->
+  </ul>
+</aside>
     <main class="content">
         <!-- TODO: This area will display content of the selected lesson-->
 

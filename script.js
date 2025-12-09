@@ -18,6 +18,63 @@ if (role === 'admin' && adminBadge) {
   adminBadge.style.display = 'none';    // hide for students
 }
 
+// Show admin controls (add button) only for admins
+const adminControls = document.getElementById('admin-controls');
+if (adminControls) {
+  adminControls.style.display = role === 'admin' ? 'block' : 'none';
+}
+
+const lessonList = document.getElementById('lesson-list');
+const addLessonBtn = document.getElementById('add-lesson-btn');
+
+// simple in-memory store; you can persist to backend later
+const lessons = [];
+
+// Helper to create a sidebar item
+function createLessonListItem(lesson) {
+  const li = document.createElement('li');
+  li.textContent = lesson.title;
+  li.dataset.lessonId = lesson.id;
+  li.onclick = () => showLesson(lesson.id);  // reuse your existing showLesson
+  return li;
+}
+
+// When admin clicks "+ Add Lesson"
+if (addLessonBtn && role === 'admin') {
+  addLessonBtn.addEventListener('click', () => {
+    const title = prompt('Enter a title for the new lesson:');
+    if (!title) return;
+
+    // create a simple id from the title
+    const idBase = title.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9\-]/g, '');
+    const id = idBase || `lesson-${lessons.length + 1}`;
+
+    const newLesson = {
+      id,
+      title,
+    };
+    lessons.push(newLesson);
+
+    // add to sidebar
+    const li = createLessonListItem(newLesson);
+    lessonList.appendChild(li);
+
+    // optionally create a placeholder content div
+    const content = document.createElement('div');
+    content.id = id;
+    content.className = 'lesson-content';
+    content.style.display = 'none';
+    content.innerHTML = `
+      <h1>${title}</h1>
+      <p>This is a new lesson created by the admin.</p>
+    `;
+    const contentArea = document.querySelector('main .content');
+    if (contentArea) {
+      contentArea.appendChild(content);
+    }
+  });
+}
+
 // --------------------
 // Quiz / lesson logic
 // --------------------

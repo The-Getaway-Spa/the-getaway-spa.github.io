@@ -25,7 +25,7 @@
   import { getAuth, signInWithEmailAndPassword } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-auth.js";
 const auth = getAuth(app);
 
-const ADMIN_EMAILS = ["info@mygetawayspa.com"]; // change to your real admin email
+const ADMIN_EMAILS = ["info@mygetawayspa.com", "angeldmomo@gmail.com"]; // change to your real admin email
 
 function isAdminEmail(email) {
   return ADMIN_EMAILS.includes(email.toLowerCase());
