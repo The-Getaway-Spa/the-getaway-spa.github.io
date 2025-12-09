@@ -340,18 +340,36 @@ Quiz.prototype.render = function () {
   }
 };
 
-// Sample instances (modify as needed)
-const lesson1 = new Lesson('lesson1', 'Lesson 1: Introduction', 'lessons/lesson1.html');
-const lesson2 = new Lesson('lesson2', 'Lesson 2: Nail Basics', 'lessons/lesson2.html');
+const API_BASE = "https://the-getaway-academy.onrender.com";
 
-const lesson2Quiz = new Quiz('lesson2quiz', 70, 'lesson3');
-lesson2Quiz.addQuestion('What is nail polish used for?', [
-  { text: 'Painting nails', isCorrect: true },
-  { text: 'Facial treatment', isCorrect: false },
-  { text: 'Skin care', isCorrect: false }
-]);
-lesson2Quiz.addQuestion('Where does shampoo go?', [
-  { text: 'on your back', isCorrect: false },
-  { text: 'between your fingers', isCorrect: false },
-  { text: 'in your hair', isCorrect: true }
-]);
+async function loadSidebarLessons() {
+  try {
+    const res = await fetch(`${API_BASE}/api/lessons`);
+    const lessons = await res.json();
+
+    const lessonList = document.getElementById("lesson-list");
+    lessonList.innerHTML = "";
+
+    lessons.forEach(lesson => {
+      const li = document.createElement("li");
+      li.textContent = lesson.title;
+      li.onclick = () => loadLessonContent(lesson);
+      lessonList.appendChild(li);
+    });
+  } catch (err) {
+    console.error("Failed to load lessons:", err);
+  }
+}
+
+function loadLessonContent(lesson) {
+  // lesson.path could be a URL your backend serves, or a static path
+  fetch(lesson.path)
+    .then(r => r.text())
+    .then(html => {
+      const container = document.getElementById("lesson-container");
+      container.innerHTML = html;
+    });
+}
+
+// Call this after you verify user is logged in
+loadSidebarLessons();
