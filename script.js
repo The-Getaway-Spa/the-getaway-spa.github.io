@@ -1,123 +1,53 @@
-/// Firebase Authentication Setup
-import { initializeApp } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-app.js";
-import {
-  getAuth,
-  signInWithEmailAndPassword,
-  signOut,
-  onAuthStateChanged
-} from "https://www.gstatic.com/firebasejs/9.23.0/firebase-auth.js";
+// script.js — used on main.html only
 
-const firebaseConfig = {
-  apiKey: "YOUR_API_KEY",
-  authDomain: "the-getaway-academy.firebaseapp.com",
-  projectId: "the-getaway-academy",
-  appId: "YOUR_APP_ID"
-};
+// --------------------
+// Auth / role handling
+// --------------------
 
-const app = initializeApp(firebaseConfig);
-const auth = getAuth(app);
-
-const ADMIN_EMAILS = ["admin@example.com"]; // change to your admin
-
-const emailInput  = document.getElementById("login-email");
-const passInput   = document.getElementById("login-password");
-const loginBtn    = document.getElementById("login-btn");
-const logoutBtn   = document.getElementById("logout-btn");
-const statusP     = document.getElementById("login-status");
-
-function isAdmin(user) {
-  return user && ADMIN_EMAILS.includes(user.email);
+// Simple front-end guard: require login
+if (sessionStorage.getItem('loggedIn') !== 'true') {
+  window.location.href = 'index.html';
 }
 
-loginBtn.addEventListener("click", async () => {
-  const email = emailInput.value.trim();
-  const password = passInput.value;
+// Read role set by register.js ('admin' or 'student')
+const role = sessionStorage.getItem('role');
+const adminBadge = document.getElementById('admin-badge');
+if (role === 'admin' && adminBadge) {
+  adminBadge.style.display = 'block';   // show ADMIN MODE
+} else if (adminBadge) {
+  adminBadge.style.display = 'none';    // hide for students
+}
 
-  try {
-    await signInWithEmailAndPassword(auth, email, password);
-    statusP.textContent = "Login successful, redirecting...";
-    // save a flag for main.html
-    sessionStorage.setItem("loggedIn", "true");
-    sessionStorage.setItem("email", email);
-    sessionStorage.setItem("isAdmin", isAdmin(auth.currentUser) ? "true" : "false");
-    // redirect to main page
-    window.location.href = "main.html";
-  } catch (err) {
-    console.error(err);
-    statusP.textContent = "Login failed.";
-  }
-});
+// --------------------
+// Quiz / lesson logic
+// --------------------
 
-logoutBtn.addEventListener("click", async () => {
-  await signOut(auth);
-  sessionStorage.clear();
-});
-
-onAuthStateChanged(auth, user => {
-  if (user) {
-    statusP.textContent = `Logged in as: ${user.email}`;
-    loginBtn.style.display  = "none";
-    logoutBtn.style.display = "inline-block";
-  } else {
-    statusP.textContent = "Not logged in.";
-    loginBtn.style.display  = "inline-block";
-    logoutBtn.style.display = "none";
-  }
-});
-
-
-/// Variable declarations
+// Variable declarations
 let totalQuestions = document.querySelectorAll('.quiz').length;
 let correctAnswers = 0;
 let currentLesson = null;
 
-// event listeners
-document.getElementById('startQuizBtn').addEventListener('click', () => {
-  // Hide intro
-  document.getElementById('introPage').style.display = 'none';
-  // Show quiz container and first question
-  const quizContainer = document.querySelector('.quiz-container');
-  quizContainer.style.display = 'block';
+// Event listeners
+const startQuizBtn = document.getElementById('startQuizBtn');
+if (startQuizBtn) {
+  startQuizBtn.addEventListener('click', () => {
+    const intro = document.getElementById('introPage');
+    if (intro) intro.style.display = 'none';
 
-  resetQuiz();
-});
+    const quizContainer = document.querySelector('.quiz-container');
+    if (quizContainer) quizContainer.style.display = 'block';
 
-/// Functions
+    resetQuiz();
+  });
+}
 
-// Source - https://stackoverflow.com/a
-// Posted by bharatadk
-// Retrieved 2025-11-19, License - CC BY-SA 4.0
-const video = document.querySelector('video');
-const playButton = document.querySelector('button');
-playButton.addEventListener('click', function() {
- video.play();
-});
-
-function unlockSidebarSection(sectionId) {
-  /*const item = document.getElementById(sectionId);
-  if (!item) {
-    alert('Sidebar item not found: ' + sectionId);
-    return;
-  }
-  else {
-    alert('Unlocking lesson: ' + sectionId);
-  }
-
-  item.classList.remove('locked');
-  item.style.color = '';
-  item.style.cursor = 'pointer';
-  item.onclick = function () {
-    alert('Unlocking and showing lesson: ' + sectionId);
-    showLesson('sectionId');
-  };*/
-} // end function unlockSidebarSection
+// Functions
 
 function setTotalQuestions(numOfQuestions) {
   totalQuestions = numOfQuestions;
-} // end function setTotalQuestions
+}
 
 function resetQuiz() {
-  // Reset scores and button colors
   correctAnswers = 0;
   const quizzes = document.querySelectorAll('.quiz');
   quizzes.forEach((q, i) => {
@@ -125,72 +55,67 @@ function resetQuiz() {
     resetButtonColors(q);
   });
 
-  // Clear previous results if any
-  document.getElementById('quizResults').innerHTML = '';
-} // end function resetQuiz
+  const results = document.getElementById('quizResults');
+  if (results) results.innerHTML = '';
+}
+
 function resetButtonColors(quizDiv) {
   const buttons = quizDiv.querySelectorAll('button');
   buttons.forEach(button => {
     button.classList.remove('correct', 'wrong');
   });
-} // end function resetButtonColors
+}
 
-function checkAnswer(btn, isCorrect, unlockLessonId = "lesson3") {
+function checkAnswer(btn, isCorrect, unlockLessonId = 'lesson3') {
   if (isCorrect) {
     correctAnswers++;
-    btn.classList.add("correct");
-    //alert("Correct!");
+    btn.classList.add('correct');
   } else {
-    btn.classList.add("wrong");
-    //alert("Wrong, try again!");
+    btn.classList.add('wrong');
   }
-  setTimeout(function () {
+
+  setTimeout(() => {
     const current = btn.closest('.quiz');
     current.style.display = 'none';
     const next = current.nextElementSibling;
+
     if (next && next.classList.contains('quiz')) {
       next.style.display = 'block';
     } else {
-      // End of quiz - show results inside the quizResults container
       const scorePercent = (correctAnswers / totalQuestions) * 100;
-      if (scorePercent >= 70) { 
-        if (unlockLessonId) unlockSidebarSection(unlockLessonId);
-      } // Unlock sections if passed
+      if (scorePercent >= 70 && unlockLessonId) {
+        unlockSidebarSection(unlockLessonId);
+      }
+
       const resultsDiv = document.getElementById('quizResults');
-      resultsDiv.innerHTML = `
-        <h2>Quiz Completed!</h2>
-        <p>Your score: ${scorePercent.toFixed(2)}%</p>
-        ${scorePercent >= 70 ? '<p>Congratulations, you passed!</p>' :
-          '<p>You did not pass. Please try again.</p>'}
-        <button id="retakeBtn">Retake Quiz</button>
-      `;
+      if (resultsDiv) {
+        resultsDiv.innerHTML = `
+          <h2>Quiz Completed!</h2>
+          <p>Your score: ${scorePercent.toFixed(2)}%</p>
+          ${
+            scorePercent >= 70
+              ? '<p>Congratulations, you passed!</p>'
+              : '<p>You did not pass. Please try again.</p>'
+          }
+          <button id="retakeBtn">Retake Quiz</button>
+        `;
 
+        const retakeBtn = document.getElementById('retakeBtn');
+        if (retakeBtn) {
+          retakeBtn.addEventListener('click', () => {
+            resultsDiv.innerHTML = '';
+            correctAnswers = 0;
+            const quizzes = document.querySelectorAll('.quiz');
+            quizzes.forEach((q, i) => (q.style.display = i === 0 ? 'block' : 'none'));
+          });
+        }
+      }
 
-      // Add retake quiz functionality
-      document.getElementById('retakeBtn').addEventListener('click', () => {
-      resultsDiv.innerHTML = '';
-      correctAnswers = 0;
       const quizzes = document.querySelectorAll('.quiz');
-      quizzes.forEach((q, i) => q.style.display = i === 0 ? 'block' : 'none');
-      });
-      //resetQuiz();
-        // Reset scores and button colors
-    //correctAnswers = 0;
-    const quizzes = document.querySelectorAll('.quiz');
-    quizzes.forEach((q, i) => {
-    //q.style.display = i === 0 ? 'block' : 'none';
-    resetButtonColors(q);
-  });
-
-  // Clear previous results if any
-  //document.getElementById('quizResults').innerHTML = '';
-  }
+      quizzes.forEach(q => resetButtonColors(q));
+    }
   }, 500);
-} // end function checkAnswer
-
-function showIfUnlocked(lessonId) {
-
-} // end function showIfUnlocked
+}
 
 function showLesson(lessonId) {
   const lessonItem = document.getElementById(lessonId);
@@ -199,48 +124,44 @@ function showLesson(lessonId) {
     return false;
   }
 
-  // Hide all content areas
-  document.querySelectorAll('.lesson-content').forEach(div => div.style.display = 'none');
-  document.querySelectorAll('.quiz-container').forEach(div => div.style.display = 'none');
+  document.querySelectorAll('.lesson-content').forEach(div => (div.style.display = 'none'));
+  document.querySelectorAll('.quiz-container').forEach(div => (div.style.display = 'none'));
 
-  // Prefer the *_content element; if not found, use the base id
-  const contentEl = document.getElementById(lessonId + '_content') || document.getElementById(lessonId);
-  if (contentEl) {
-    contentEl.style.display = 'block';
-  }
-}// end function showLesson
+  // Clear dynamic lesson container if you use it
+  const lessonContainer = document.getElementById('lesson-container');
+  if (lessonContainer) lessonContainer.innerHTML = '';
+
+  const contentEl =
+    document.getElementById(lessonId + '_content') ||
+    document.getElementById(lessonId);
+
+  if (contentEl) contentEl.style.display = 'block';
+}
 
 function unlockSidebarSection(SectionId) {
   const lockedItems = document.querySelectorAll('.sidebar .locked');
   lockedItems.forEach(item => {
     if (item.id === SectionId) {
-      // Unlock this specific lesson
       item.classList.remove('locked');
-      item.style.color = '';            // Reset color
-      item.style.cursor = 'pointer';   // Restore pointer cursor
-      // Enable clicking by replacing onclick handler
-      item.onclick = function () { showLesson(this.id); };
+      item.style.color = '';
+      item.style.cursor = 'pointer';
+      item.onclick = function () {
+        showLesson(this.id);
+      };
     }
   });
 }
 
-
-/// Objects
-
 // Lesson class
 function Lesson(id, title, contentPath) {
-  this.id = id;            // logical id, e.g. "lesson1"
-  this.title = title;      // display title
-  this.content = contentPath; // e.g. "lessons/lesson1.html"
+  this.id = id;
+  this.title = title;
+  this.content = contentPath;
 }
 
 Lesson.prototype.openLesson = async function () {
-  //alert(`Opening lesson: ${this.id}`);
+  unlockSidebarInSidebar(this.id);
 
-  // unlock this lesson in the sidebar
-  unlockLessonInSidebar(this.id);
-
-  // hide other content if needed, then load HTML as you already do
   const container = document.getElementById('lesson-container');
   if (!container) return;
 
@@ -255,50 +176,42 @@ Lesson.prototype.openLesson = async function () {
 
 Lesson.prototype.closeLesson = function () {
   const container = document.getElementById('lesson-container');
-  if (container) {
-    container.innerHTML = '';
-  }
+  if (container) container.innerHTML = '';
 };
-// end class Lesson
+
+// Helper to unlock a specific lesson in the sidebar
+function unlockSidebarInSidebar(lessonId) {
+  const item = document.getElementById(lessonId);
+  if (!item) return;
+  item.classList.remove('locked');
+  item.style.color = '';
+  item.style.cursor = 'pointer';
+}
 
 // Quiz class
 function Quiz(id, passPercent, unlockLessonId) {
-  this.id = id;                    // e.g. 'lesson2quiz'
-  this.passPercent = passPercent;  // e.g. 70
+  this.id = id;
+  this.passPercent = passPercent;
   this.unlockLessonId = unlockLessonId || null;
   this.questions = [];
 }
 
 Quiz.prototype.addQuestion = function (text, answers) {
-  // answers: [{ text: 'Painting nails', isCorrect: true }, ...]
   this.questions.push({ text, answers });
 };
 
 Quiz.prototype.render = function () {
-  //alert(`Rendering quiz: ${this.id}`);
-
-  // Hide other content
-  //document.querySelectorAll('.lesson-content').forEach(div => div.style.display = 'none');
-  //document.querySelectorAll('.quiz-container').forEach(div => div.style.display = 'none');
-
   const lesson_container = document.getElementById('lesson-container');
-  if (lesson_container) {
-    //alert('Clearing lesson container for quiz rendering.');
-    lesson_container.innerHTML = '';
-  }
+  if (lesson_container) lesson_container.innerHTML = '';
 
   const quiz_container = document.querySelector('.quiz-container');
   if (!quiz_container) {
     alert('Quiz container not found!');
     return;
-  } else {
-    //alert('Quiz container was found!');
   }
 
-  // Clear old quiz
   quiz_container.innerHTML = '';
 
-  // Intro / start button (optional; you can reuse your existing introPage markup)
   lesson_container.innerHTML = `
     <div id="introPage" style="text-align:center; padding:30px;">
       <h2>Welcome to the Quiz!</h2>
@@ -308,8 +221,7 @@ Quiz.prototype.render = function () {
     <div id="quizResults" style="padding:20px; font-size:1.2em;"></div>
   `;
 
-  // Create question blocks
-  this.questions.forEach((q, index) => {
+  this.questions.forEach(q => {
     const qDiv = document.createElement('div');
     qDiv.className = 'quiz';
     qDiv.style.display = 'none';
@@ -322,53 +234,32 @@ Quiz.prototype.render = function () {
       qDiv.appendChild(btn);
     });
 
-    container.insertBefore(qDiv, document.getElementById('quizResults'));
+    lesson_container.insertBefore(qDiv, document.getElementById('quizResults'));
   });
 
-  // Re‑wire start button and totals
   const startBtn = document.getElementById('startQuizBtn');
-  startBtn.addEventListener('click', () => {
-    document.getElementById('introPage').style.display = 'none';
-    document.querySelector('.quiz').style.display = 'block';
-    setTotalQuestions(this.questions.length);
-    resetQuiz();
-  });
+  if (startBtn) {
+    startBtn.addEventListener('click', () => {
+      document.getElementById('introPage').style.display = 'none';
+      document.querySelector('.quiz').style.display = 'block';
+      setTotalQuestions(this.questions.length);
+      resetQuiz();
+    });
+  }
 };
-// end class Quiz
 
-
-/// Object instances
-
-// sample lessons
+// Sample instances (modify as needed)
 const lesson1 = new Lesson('lesson1', 'Lesson 1: Introduction', 'lessons/lesson1.html');
 const lesson2 = new Lesson('lesson2', 'Lesson 2: Nail Basics', 'lessons/lesson2.html');
 
-// sample quizzes
-// lesson 2 quiz
 const lesson2Quiz = new Quiz('lesson2quiz', 70, 'lesson3');
 lesson2Quiz.addQuestion('What is nail polish used for?', [
-  { text: 'Painting nails',   isCorrect: true },
+  { text: 'Painting nails', isCorrect: true },
   { text: 'Facial treatment', isCorrect: false },
-  { text: 'Skin care',        isCorrect: false }
+  { text: 'Skin care', isCorrect: false }
 ]);
-
 lesson2Quiz.addQuestion('Where does shampoo go?', [
-  { text: 'on your back',          isCorrect: false },
-  { text: 'between your fingers',  isCorrect: false },
-  { text: 'in your hair',          isCorrect: true }
+  { text: 'on your back', isCorrect: false },
+  { text: 'between your fingers', isCorrect: false },
+  { text: 'in your hair', isCorrect: true }
 ]);
-// lesson 3+4 quiz
-const lesson3plus4Quiz = new Quiz('lesson3+4Quiz', 70, 'lesson3');
-lesson3plus4Quiz.addQuestion('What is nail polish used for?', [
-  { text: 'Painting nails',   isCorrect: true },
-  { text: 'Facial treatment', isCorrect: false },
-  { text: 'Skin care',        isCorrect: false }
-]);
-
-lesson3plus4Quiz.addQuestion('Where does shampoo go?', [
-  { text: 'on your back',          isCorrect: false },
-  { text: 'between your fingers',  isCorrect: false },
-  { text: 'in your hair',          isCorrect: true }
-]);
-
-// You can create lesson3+4 quiz the same way with its own questions

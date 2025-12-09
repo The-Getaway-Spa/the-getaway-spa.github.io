@@ -7,6 +7,16 @@ body { font-family: Arial, sans-serif; background: #f4f4f4; }
 .quiz button.correct { background: green; color: white; }
 .quiz button.wrong { background: red; color: white; }
 
+.admin-badge {
+  position: fixed;
+  top: 10px;
+  right: 20px;
+  color: #2196f3;           /* blue text */
+  font-weight: bold;
+  font-size: 0.9rem;
+  z-index: 1000;
+}
+
 .flex-container {
   display: flex;
   min-height: 100vh;

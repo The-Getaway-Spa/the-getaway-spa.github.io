@@ -28,7 +28,7 @@ const auth = getAuth(app);
 const ADMIN_EMAILS = ["info@mygetawayspa.com"]; // change to your real admin email
 
 function isAdminEmail(email) {
-  return ADMIN_EMAILS.includes(email);
+  return ADMIN_EMAILS.includes(email.toLowerCase());
 }
 
 // Correct input references (match HTML IDs)
@@ -55,10 +55,17 @@ async function handleLogin(event) {
     // Attempt to sign in with Firebase Auth
     const userCredential = await signInWithEmailAndPassword(auth, email, password);
     // If successful, redirect to main page
+
     if (isAdminEmail(email)) {
-      alert('Admin login detected');
-      sessionStorage.setItem('isAdmin', 'true');
+      //alert('Admin login detected');
     }
+
+    // store role info for main.html
+    const role = isAdminEmail(email) ? 'admin' : 'student';
+    sessionStorage.setItem('loggedIn', 'true');
+    sessionStorage.setItem('email', email);
+    sessionStorage.setItem('role', role);
+
     window.location.href = 'main.html';
   } catch (error) {
     // On error, show a friendly message. Do not leak internal error details to the user.
