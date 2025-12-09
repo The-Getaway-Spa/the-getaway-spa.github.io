@@ -64,6 +64,30 @@ body { font-family: Arial, sans-serif; background: #f4f4f4; }
   background: inherit; /* or remove hover effect */
 }
 
+/* Sidebar list items */
+.sidebar ul li {
+  position: relative;           /* needed so remove button can be absolute */
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+/* Remove button: hidden by default */
+.sidebar .remove-lesson-btn {
+  display: none;
+  margin-left: 8px;
+  border: none;
+  background: transparent;
+  color: #f44336;               /* red */
+  font-size: 0.8rem;
+  cursor: pointer;
+}
+
+/* Show remove button only on hover, for admins only */
+.sidebar ul li.admin-owned:hover .remove-lesson-btn {
+  display: inline;
+}
+
 .content {
   flex: 1;
   padding: 40px;

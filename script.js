@@ -33,10 +33,45 @@ const lessons = [];
 // Helper to create a sidebar item
 function createLessonListItem(lesson) {
   const li = document.createElement('li');
-  li.textContent = lesson.title;
+  li.classList.add('admin-owned');           // so the hover rule applies
   li.dataset.lessonId = lesson.id;
-  li.onclick = () => showLesson(lesson.id);  // reuse your existing showLesson
+
+  const titleSpan = document.createElement('span');
+  titleSpan.textContent = lesson.title;
+  titleSpan.onclick = () => showLesson(lesson.id);
+
+  const removeBtn = document.createElement('button');
+  removeBtn.textContent = '✕';
+  removeBtn.className = 'remove-lesson-btn';
+  removeBtn.title = 'Remove lesson';
+
+  removeBtn.onclick = (e) => {
+    e.stopPropagation();                     // don’t trigger showLesson
+    removeLesson(lesson.id, li);
+  };
+
+  li.appendChild(titleSpan);
+  li.appendChild(removeBtn);
   return li;
+}
+
+function removeLesson(lessonId, liElement) {
+  // Remove from sidebar
+  if (liElement && liElement.parentNode) {
+    liElement.parentNode.removeChild(liElement);
+  }
+
+  // Remove corresponding content div if it exists
+  const contentEl = document.getElementById(lessonId);
+  if (contentEl && contentEl.parentNode) {
+    contentEl.parentNode.removeChild(contentEl);
+  }
+
+  // Optional: remove from in-memory lessons array
+  const index = lessons.findIndex(l => l.id === lessonId);
+  if (index !== -1) {
+    lessons.splice(index, 1);
+  }
 }
 
 // When admin clicks "+ Add Lesson"
