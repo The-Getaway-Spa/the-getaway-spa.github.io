@@ -2,6 +2,8 @@
 
 const API_BASE = "https://the-getaway-academy.onrender.com";
 const role = sessionStorage.getItem("role");
+const lessonList = document.getElementById("lesson-list");
+const addLessonBtn = document.getElementById("add-lesson-btn");
 
 // --------------------
 // Auth / role handling
@@ -26,36 +28,31 @@ if (adminControls) {
   adminControls.style.display = role === 'admin' ? 'block' : 'none';
 }
 
-const lessonList = document.getElementById('lesson-list');
-const addLessonBtn = document.getElementById('add-lesson-btn');
-
 // simple in-memory store; you can persist to backend later
 const lessons = [];
 
 // Helper to create a sidebar item
 function createLessonListItem(lesson) {
-  const li = document.createElement('li');
-  li.classList.add('admin-owned');           // so the hover rule applies
+  const li = document.createElement("li");
+  li.classList.add("admin-owned");
   li.dataset.lessonId = lesson.id;
 
-  const titleSpan = document.createElement('span');
+  const titleSpan = document.createElement("span");
   titleSpan.textContent = lesson.title;
-  titleSpan.onclick = () => showLesson(lesson.id);
+  titleSpan.onclick = () => loadLessonContent(lesson);
 
-  const removeBtn = document.createElement('button');
-  removeBtn.textContent = '✕';
-  removeBtn.className = 'remove-lesson-btn';
-  removeBtn.title = 'Remove lesson';
-
+  const removeBtn = document.createElement("button");
+  removeBtn.textContent = "✕";
+  removeBtn.className = "remove-lesson-btn";
   removeBtn.onclick = (e) => {
-    e.stopPropagation();                     // don’t trigger showLesson
+    e.stopPropagation();
     removeLesson(lesson.id, li);
   };
 
   li.appendChild(titleSpan);
   li.appendChild(removeBtn);
   return li;
-}
+} // end function createLessonListItem
 
 async function removeLesson(lessonId, liElement) {
   if (!confirm("Remove this lesson?")) return;
@@ -85,33 +82,38 @@ async function removeLesson(lessonId, liElement) {
 // When admin clicks "+ Add Lesson"
 if (addLessonBtn && role === "admin") {
   addLessonBtn.addEventListener("click", async () => {
-    const title = prompt("Enter a title for the new lesson:");
-    if (!title) return;
+    const name = prompt("Enter a name for the new lesson:");
+    if (!name) return;
 
-    const path = prompt("Enter the path to the lesson HTML (e.g. lessons/lesson3.html):");
-    if (!path) return;
+    try {
+      const res = await fetch(`${API_BASE}/api/lessons`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "X-User-Role": role
+        },
+        body: JSON.stringify({ name })
+      });
 
-    const body = { title, path };
+      if (res.status === 409) {
+        alert("A lesson file with that name already exists. Delete it or use a different name.");
+        return;
+      }
 
-    const res = await fetch(`${API_BASE}/api/lessons`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "X-User-Role": role
-      },
-      body: JSON.stringify(body)
-    });
+      if (!res.ok) {
+        alert("Failed to create lesson.");
+        return;
+      }
 
-    if (!res.ok) {
-      alert("Failed to create lesson.");
-      return;
+      const savedLesson = await res.json();
+      const li = createLessonListItem(savedLesson);
+      lessonList.appendChild(li);
+    } catch (err) {
+      console.error(err);
+      alert("Network error while creating lesson.");
     }
-
-    const savedLesson = await res.json();
-    const li = createLessonListItem(savedLesson);
-    lessonList.appendChild(li);
   });
-}
+} // end addLessonBtn listener
 
 
 // --------------------
@@ -349,12 +351,31 @@ async function loadSidebarLessons() {
   lessonList.innerHTML = "";
 
   const res = await fetch(`${API_BASE}/api/lessons`);
-  const lessons = await res.json();
+  const apiLessons = await res.json();   // <- renamed
 
-  lessons.forEach(lesson => {
+  // optional: keep local cache in the outer `lessons` array
+  lessons.length = 0;
+  apiLessons.forEach(l => lessons.push(l));
+
+  apiLessons.forEach(lesson => {
     const li = createLessonListItem(lesson);
     lessonList.appendChild(li);
   });
+}
+
+function loadLessonContent(lesson) {
+  const container = document.getElementById("lesson-container");
+  if (!container) return;
+
+  fetch(lesson.path)
+    .then(r => r.text())
+    .then(html => {
+      container.innerHTML = html;
+    })
+    .catch(err => {
+      console.error(err);
+      container.innerHTML = "<p>Sorry, this lesson could not be loaded.</p>";
+    });
 }
 
 // Call this after you verify user is logged in
