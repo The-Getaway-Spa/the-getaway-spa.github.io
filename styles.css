@@ -7,6 +7,36 @@ body { font-family: Arial, sans-serif; background: #f4f4f4; }
 .quiz button.correct { background: green; color: white; }
 .quiz button.wrong { background: red; color: white; }
 
+/* Container that holds the add button (already only shown to admins in JS) */
+#admin-controls {
+  padding: 10px 16px;
+  border-bottom: 1px solid #333;
+}
+
+/* The Add Lesson button itself */
+#add-lesson-btn {
+  width: 100%;
+  padding: 8px 10px;
+  background-color: #2196f3;     /* blue */
+  color: #fff;
+  border: none;
+  border-radius: 4px;
+  font-size: 0.9rem;
+  font-weight: 600;
+  cursor: pointer;
+  text-align: left;              /* align with lesson labels */
+  transition: background 0.2s ease, transform 0.1s ease;
+}
+
+/* Hover / active states */
+#add-lesson-btn:hover {
+  background-color: #1976d2;
+}
+
+#add-lesson-btn:active {
+  transform: scale(0.98);
+}
+
 .admin-badge {
   position: fixed;
   top: 10px;
