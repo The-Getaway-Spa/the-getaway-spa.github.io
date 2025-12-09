@@ -13,16 +13,8 @@ LESSONS_DIR = os.path.join(BASE_DIR, "lessons")
 
 # Temporary in-memory store
 lessons = [
-    {
-        "id": "lesson1",
-        "title": "Lesson 1: Introduction",
-        "path": "https://the-getaway-academy.onrender.com/lessons/lesson1.html",
-    },
-    {
-        "id": "lesson2",
-        "title": "Lesson 2: Nail Basics",
-        "path": "https://the-getaway-academy.onrender.com/lessons/lesson2.html",
-    },
+    {"id": "lesson1", "title": "Lesson 1: Introduction", "path": "lessons/lesson1.html"},
+    {"id": "lesson2", "title": "Lesson 2: Nail Basics",  "path": "lessons/lesson2.html"},
 ]
 
 def is_admin(request):
@@ -37,7 +29,7 @@ def list_lessons():
 def create_lesson():
   if not is_admin(request):
     abort(403)
-
+    
   # Log what the client actually sent
   data = request.get_json(force=True) or {}
   app.logger.info("create_lesson data=%r", data)
@@ -84,9 +76,7 @@ def create_lesson():
     return jsonify({"error": "file_exists"}), 409
 
   lesson_id = safe               # e.g. "bob"
-  lesson_path = f"https://the-getaway-academy.onrender.com/lessons/{filename}"
-  new_lesson = {"id": lesson_id, "title": title, "path": lesson_path}
-
+  lesson_path = f"lessons/{filename}"
 
   new_lesson = {"id": lesson_id, "title": title, "path": lesson_path}
   lessons.append(new_lesson)
