@@ -135,6 +135,15 @@ body { font-family: Arial, sans-serif; background: #f4f4f4; }
   font-size: 1.3em;
 }
 
+main {
+  flex: 1;
+  padding: 32px;
+  background: #f5f6fa;
+  margin: 12px;  /* Remove inline margin="" from HTML */
+  overflow-y: auto;  /* Scroll if lesson content is long */
+  box-sizing: border-box;
+}
+
 main > div {
   margin: 12px;
 }
