@@ -400,12 +400,184 @@ function loadLessonContent(lesson) {
     })
     .then(html => {
       container.innerHTML = html;
+
+      // If admin, add an edit button (admin must click to open editor)
+      if (role === 'admin') {
+        // Remove any existing edit button to avoid duplicates
+        const existingEditBtn = document.getElementById('lesson-edit-btn');
+        if (existingEditBtn && existingEditBtn.parentNode) existingEditBtn.parentNode.removeChild(existingEditBtn);
+
+        const editBtn = document.createElement('button');
+        editBtn.id = 'lesson-edit-btn';
+        editBtn.textContent = 'Edit Lesson';
+        editBtn.style.cssText = `
+          display: inline-block;
+          margin-top: 18px;
+          padding: 8px 14px;
+          background: #1976d2;
+          color: #fff;
+          border: none;
+          border-radius: 6px;
+          cursor: pointer;
+        `;
+
+        // When clicked, show the editor (if not already open)
+        editBtn.addEventListener('click', (e) => {
+          e.stopPropagation();
+          // If editor already open, do nothing (or focus it)
+          const existingEditor = document.getElementById('lesson-editor-panel');
+          if (existingEditor) {
+            const ta = document.getElementById('lesson-content-editor');
+            if (ta) ta.focus();
+            return;
+          }
+
+          addLessonEditor(lesson, container);
+        });
+
+        // Append the edit button after the lesson content
+        container.appendChild(editBtn);
+      }
     })
     .catch(err => {
       console.error(err);
       container.innerHTML = "<p>Sorry, this lesson could not be loaded.</p>";
     });
 } // end function loadLessonContent
+
+// Add an inline editor for admins to edit lesson content
+function addLessonEditor(lesson, container) {
+  // Create editor panel
+  const editorPanel = document.createElement("div");
+  editorPanel.id = "lesson-editor-panel";
+  editorPanel.style.cssText = `
+    margin-top: 30px;
+    padding: 20px;
+    border: 2px solid #2196f3;
+    border-radius: 8px;
+    background: #f9f9f9;
+  `;
+
+  const editorTitle = document.createElement("h3");
+  editorTitle.textContent = "Edit Lesson Content";
+  editorPanel.appendChild(editorTitle);
+
+  const textarea = document.createElement("textarea");
+  textarea.id = "lesson-content-editor";
+  textarea.style.cssText = `
+    width: 100%;
+    height: 300px;
+    padding: 10px;
+    font-family: monospace;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+    box-sizing: border-box;
+    margin: 10px 0;
+  `;
+  textarea.value = container.innerHTML;
+  editorPanel.appendChild(textarea);
+
+  // focus the textarea when editor is added
+  // we'll focus after appending the editor to DOM in addLessonEditor
+
+  const buttonDiv = document.createElement("div");
+  buttonDiv.style.cssText = "display: flex; gap: 10px; margin-top: 10px; align-items: center;";
+
+  // Inline status message
+  const statusDiv = document.createElement('div');
+  statusDiv.id = 'lesson-editor-status';
+  statusDiv.style.cssText = 'margin-right: 12px; color: #333; font-size: 0.95rem;';
+  statusDiv.textContent = '';
+
+  const saveBtn = document.createElement("button");
+  saveBtn.textContent = "Save Changes";
+  saveBtn.style.cssText = `
+    padding: 10px 20px;
+    background: #4CAF50;
+    color: white;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    font-weight: bold;
+  `;
+
+  const cancelBtn = document.createElement("button");
+  cancelBtn.textContent = "Cancel";
+  cancelBtn.style.cssText = `
+    padding: 10px 20px;
+    background: #f44336;
+    color: white;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    font-weight: bold;
+  `;
+
+  // When editor opens, disable the Edit button to avoid duplicates
+  const editBtn = document.getElementById('lesson-edit-btn');
+  if (editBtn) editBtn.disabled = true;
+
+  // Cancel handler: remove editor and re-enable edit button
+  cancelBtn.onclick = () => {
+    editorPanel.remove();
+    if (editBtn) editBtn.disabled = false;
+  };
+
+  // Save handler: disable buttons, show inline status, perform save, then re-enable or reload
+  saveBtn.onclick = async () => {
+    saveBtn.disabled = true;
+    cancelBtn.disabled = true;
+    if (editBtn) editBtn.disabled = true;
+    statusDiv.textContent = 'Saving...';
+
+    const success = await saveLessonContent(lesson, textarea.value, statusDiv);
+
+    if (!success) {
+      // Re-enable if failed
+      saveBtn.disabled = false;
+      cancelBtn.disabled = false;
+      if (editBtn) editBtn.disabled = false;
+    }
+  };
+
+  buttonDiv.appendChild(statusDiv);
+  buttonDiv.appendChild(saveBtn);
+  buttonDiv.appendChild(cancelBtn);
+  editorPanel.appendChild(buttonDiv);
+  container.appendChild(editorPanel);
+
+  // Focus the textarea so admin can start editing immediately
+  const ta = document.getElementById('lesson-content-editor');
+  if (ta) ta.focus();
+}
+
+// Save edited lesson content back to the backend
+async function saveLessonContent(lesson, newHtml, statusDiv) {
+  try {
+    const res = await fetch(`${API_BASE}/api/lessons/${encodeURIComponent(lesson.id)}`, {
+      method: "PUT",
+      headers: {
+        "Content-Type": "application/json",
+        "X-User-Role": role
+      },
+      body: JSON.stringify({ content: newHtml })
+    });
+
+    if (!res.ok) {
+      if (statusDiv) statusDiv.textContent = 'Failed to save lesson content.';
+      return false;
+    }
+
+    if (statusDiv) statusDiv.textContent = 'Saved successfully.';
+    // Reload the content to show updated version (this will remove the editor)
+    loadLessonContent(lesson);
+    return true;
+  } catch (err) {
+    console.error(err);
+    if (statusDiv) statusDiv.textContent = 'Error saving lesson content.';
+    return false;
+  }
+}
 
 // Call this after you verify user is logged in
 loadSidebarLessons();
