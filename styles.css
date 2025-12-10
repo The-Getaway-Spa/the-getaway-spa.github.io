@@ -135,6 +135,10 @@ body { font-family: Arial, sans-serif; background: #f4f4f4; }
   font-size: 1.3em;
 }
 
+main > div {
+  margin: 12px;
+}
+
 /* Center the login panel on the screen */
 #login-panel {
   position: fixed;
