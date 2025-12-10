@@ -44,21 +44,20 @@ function createLessonListItem(lesson) {
   removeBtn.textContent = "✕";
   removeBtn.className = "remove-lesson-btn";
   removeBtn.onclick = (e) => {
-    e.stopPropagation();                 // don’t trigger li click
+    e.stopPropagation();
     removeLesson(lesson.id, li);
   };
 
-  // Single click handler for the whole list item
   li.onclick = () => {
-    // Clear previous selection
+    // clear previous selection
     document
       .querySelectorAll(".sidebar ul li.selected")
       .forEach(el => el.classList.remove("selected"));
 
-    // Mark this one as selected
+    // mark this as selected
     li.classList.add("selected");
 
-    // Load lesson content
+    // load lesson HTML into <main>
     loadLessonContent(lesson);
   };
 
@@ -374,14 +373,22 @@ async function loadSidebarLessons() {
     const li = createLessonListItem(lesson);
     lessonList.appendChild(li);
   });
-}
+} // end function loadSidebarLessons
 
 function loadLessonContent(lesson) {
   const container = document.getElementById("lesson-container");
   if (!container) return;
 
+  // Optional: show a loading state
+  container.innerHTML = "<p>Loading lesson...</p>";
+
   fetch(lesson.path)
-    .then(r => r.text())
+    .then(res => {
+      if (!res.ok) {
+        throw new Error("Failed to load lesson HTML");
+      }
+      return res.text();
+    })
     .then(html => {
       container.innerHTML = html;
     })
@@ -389,7 +396,7 @@ function loadLessonContent(lesson) {
       console.error(err);
       container.innerHTML = "<p>Sorry, this lesson could not be loaded.</p>";
     });
-}
+} // end function loadLessonContent
 
 // Call this after you verify user is logged in
 loadSidebarLessons();

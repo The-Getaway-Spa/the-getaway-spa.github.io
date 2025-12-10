@@ -6,7 +6,7 @@ from flask_cors import CORS
 app = Flask(__name__)
 
 # Allow front‑end origins; during dev you can use "*" and tighten later
-CORS(app, resources={r"/api/*": {"origins": ["http://localhost:8000", "http://getaway-academy.duckdns.org/"]}})
+CORS(app, resources={r"/api/*": {"origins": ["http://localhost:8000", "http://getaway-academy.duckdns.org"]}})
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 LESSONS_DIR = os.path.join(BASE_DIR, "lessons")
