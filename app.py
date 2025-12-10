@@ -6,11 +6,10 @@ from flask_cors import CORS
 app = Flask(__name__)
 
 # Allow front‑end origins; during dev you can use "*" and tighten later
-CORS(app,
-     resources={r"/api/*": {
-         "origins": ["http://localhost:8000", "http://getaway-academy.duckdns.org"],
-         "allow_headers": ["Content-Type", "X-User-Role"]
-     }})
+CORS(app, resources={r"/*": {
+    "origins": ["http://localhost:8000", "http://localhost:3000", "http://getaway-academy.duckdns.org", "https://the-getaway-academy.github.io"],
+    "allow_headers": ["Content-Type", "X-User-Role"]
+}})
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 LESSONS_DIR = os.path.join(BASE_DIR, "lessons")

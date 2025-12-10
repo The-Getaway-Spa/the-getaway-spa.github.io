@@ -382,10 +382,12 @@ function loadLessonContent(lesson) {
     return;
   }
 
-  // Optional: show a loading state
   container.innerHTML = "<p>Loading lesson...</p>";
 
-  fetch(lesson.path)
+  // Fetch the lesson HTML from the Flask backend, not from localhost
+  const url = `${API_BASE}/${lesson.path.replace(/^\/+/, "")}`;
+
+  fetch(url)
     .then(res => {
       if (!res.ok) {
         throw new Error("Failed to load lesson HTML");
@@ -393,7 +395,6 @@ function loadLessonContent(lesson) {
       return res.text();
     })
     .then(html => {
-      alert("Loaded lesson: " + lesson.title);
       container.innerHTML = html;
     })
     .catch(err => {
