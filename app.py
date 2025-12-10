@@ -15,10 +15,7 @@ BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 LESSONS_DIR = os.path.join(BASE_DIR, "lessons")
 
 # Temporary in-memory store
-lessons = [
-    {"id": "lesson1", "title": "Lesson 1: Introduction", "path": "lessons/lesson1.html"},
-    {"id": "lesson2", "title": "Lesson 2: Nail Basics",  "path": "lessons/lesson2.html"},
-]
+lessons = []
 
 def is_admin(request):
     # For now, trust a header from your front end; later you can validate Firebase ID tokens
