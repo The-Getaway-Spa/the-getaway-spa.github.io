@@ -7,7 +7,7 @@ app = Flask(__name__)
 
 # Allow front‑end origins; during dev you can use "*" and tighten later
 CORS(app, resources={r"/*": {
-    "origins": ["http://localhost:8000", "http://localhost:3000", "http://getaway-academy.duckdns.org", "https://the-getaway-academy.github.io"],
+    "origins": ["http://localhost:8000", "http://localhost:3000", "http://getaway-academy.duckdns.org", "https://the-getaway-spa.github.io"],
     "allow_headers": ["Content-Type", "X-User-Role"]
 }})
 
