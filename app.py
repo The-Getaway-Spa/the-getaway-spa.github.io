@@ -96,3 +96,13 @@ def delete_lesson(lesson_id):
     if len(lessons) == before:
         return jsonify({"error": "not found"}), 404
     return "", 204
+
+@app.route("/lessons/<path:filename>")
+def serve_lesson(filename):
+    file_path = os.path.join(LESSONS_DIR, filename)
+    if not os.path.exists(file_path):
+        return "Lesson not found", 404
+    with open(file_path, "r", encoding="utf-8") as f:
+        return f.read(), 200, {"Content-Type": "text/html; charset=utf-8"}
+
+
