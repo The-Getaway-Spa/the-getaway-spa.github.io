@@ -377,7 +377,10 @@ async function loadSidebarLessons() {
 
 function loadLessonContent(lesson) {
   const container = document.getElementById("lesson-container");
-  if (!container) return;
+  if (!container) {
+    alert("Lesson container not found.");
+    return;
+  }
 
   // Optional: show a loading state
   container.innerHTML = "<p>Loading lesson...</p>";
@@ -390,6 +393,7 @@ function loadLessonContent(lesson) {
       return res.text();
     })
     .then(html => {
+      alert("Loaded lesson: " + lesson.title);
       container.innerHTML = html;
     })
     .catch(err => {
