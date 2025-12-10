@@ -554,7 +554,10 @@ function addLessonEditor(lesson, container) {
 // Save edited lesson content back to the backend
 async function saveLessonContent(lesson, newHtml, statusDiv) {
   try {
-    const res = await fetch(`${API_BASE}/api/lessons/${encodeURIComponent(lesson.id)}`, {
+    const url = `${API_BASE}/api/lessons/${encodeURIComponent(lesson.id)}`;
+
+    // Try PUT first
+    let res = await fetch(url, {
       method: "PUT",
       headers: {
         "Content-Type": "application/json",
@@ -563,8 +566,23 @@ async function saveLessonContent(lesson, newHtml, statusDiv) {
       body: JSON.stringify({ content: newHtml })
     });
 
+    // If PUT is not allowed (405), try PATCH as a fallback
+    if (res.status === 405) {
+      console.warn('PUT not allowed on', url, '- trying PATCH as fallback');
+      res = await fetch(url, {
+        method: "PATCH",
+        headers: {
+          "Content-Type": "application/json",
+          "X-User-Role": role
+        },
+        body: JSON.stringify({ content: newHtml })
+      });
+    }
+
     if (!res.ok) {
-      if (statusDiv) statusDiv.textContent = 'Failed to save lesson content.';
+      const text = await res.text().catch(() => '');
+      console.error('Save failed', res.status, text);
+      if (statusDiv) statusDiv.textContent = `Save failed: ${res.status}${text ? ' - ' + text : ''}`;
       return false;
     }
 
