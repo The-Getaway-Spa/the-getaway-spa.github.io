@@ -40,14 +40,6 @@ function createLessonListItem(lesson) {
   const titleSpan = document.createElement("span");
   titleSpan.textContent = lesson.title;
 
-  const removeBtn = document.createElement("button");
-  removeBtn.textContent = "✕";
-  removeBtn.className = "remove-lesson-btn";
-  removeBtn.onclick = (e) => {
-    e.stopPropagation();
-    removeLesson(lesson.id, li);
-  };
-
   li.onclick = () => {
     // clear previous selection
     document
@@ -62,7 +54,19 @@ function createLessonListItem(lesson) {
   };
 
   li.appendChild(titleSpan);
-  li.appendChild(removeBtn);
+
+  // Only add remove button for admins
+  if (role === 'admin') {
+    const removeBtn = document.createElement("button");
+    removeBtn.textContent = "✕";
+    removeBtn.className = "remove-lesson-btn";
+    removeBtn.onclick = (e) => {
+      e.stopPropagation();
+      removeLesson(lesson.id, li);
+    };
+    li.appendChild(removeBtn);
+  }
+
   return li;
 } // end function createLessonListItem
 
