@@ -539,7 +539,7 @@ function loadLessonContent(lesson) {
         return;
       }
 
-      // If not a quiz, provide the regular lesson editor for admins
+      // If not a quiz, provide the regular lesson editor for admins only
       if (role === 'admin') {
         // Remove any existing edit button to avoid duplicates
         const existingEditBtn = document.getElementById('lesson-edit-btn');
@@ -547,7 +547,7 @@ function loadLessonContent(lesson) {
 
         const editBtn = document.createElement('button');
         editBtn.id = 'lesson-edit-btn';
-        editBtn.textContent = 'Edit Lesson';
+        editBtn.textContent = isQuiz ? 'Edit Quiz' : 'Edit Lesson';
         editBtn.style.cssText = `
           display: inline-block;
           margin-top: 18px;
