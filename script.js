@@ -461,7 +461,7 @@ function loadLessonContent(lesson) {
     });
 } // end function loadLessonContent
 
-// Add an inline editor for admins to edit lesson content
+// Add a user-friendly WYSIWYG editor for admins to edit lesson content
 function addLessonEditor(lesson, container) {
   // Create editor panel
   const editorPanel = document.createElement("div");
@@ -478,24 +478,161 @@ function addLessonEditor(lesson, container) {
   editorTitle.textContent = "Edit Lesson Content";
   editorPanel.appendChild(editorTitle);
 
-  const textarea = document.createElement("textarea");
-  textarea.id = "lesson-content-editor";
-  textarea.style.cssText = `
-    width: 100%;
-    height: 300px;
+  // Create toolbar
+  const toolbar = document.createElement("div");
+  toolbar.style.cssText = `
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-bottom: 15px;
     padding: 10px;
-    font-family: monospace;
+    background: #fff;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+  `;
+
+  // Helper to create toolbar buttons
+  const createToolbarBtn = (label, onClick) => {
+    const btn = document.createElement("button");
+    btn.textContent = label;
+    btn.style.cssText = `
+      padding: 6px 12px;
+      background: #2196f3;
+      color: white;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 0.9rem;
+      font-weight: 500;
+    `;
+    btn.onmouseover = () => btn.style.background = '#1976d2';
+    btn.onmouseout = () => btn.style.background = '#2196f3';
+    btn.onclick = onClick;
+    return btn;
+  };
+
+  // Heading buttons
+  toolbar.appendChild(createToolbarBtn("H1", () => insertElement("h1", "Heading 1")));
+  toolbar.appendChild(createToolbarBtn("H2", () => insertElement("h2", "Heading 2")));
+  toolbar.appendChild(createToolbarBtn("H3", () => insertElement("h3", "Heading 3")));
+
+  // Paragraph button
+  toolbar.appendChild(createToolbarBtn("Paragraph", () => insertElement("p", "Your text here")));
+
+  // Text formatting
+  toolbar.appendChild(createToolbarBtn("Bold", () => insertElement("strong", "bold text")));
+  toolbar.appendChild(createToolbarBtn("Italic", () => insertElement("em", "italic text")));
+
+  // Image button
+  toolbar.appendChild(createToolbarBtn("🖼 Insert Image", () => {
+    const url = prompt("Enter image URL:");
+    if (url) insertImage(url);
+  }));
+
+  // Video button
+  toolbar.appendChild(createToolbarBtn("🎬 Insert Video", () => {
+    const url = prompt("Enter YouTube video URL (e.g., https://www.youtube.com/watch?v=...):");
+    if (url) insertVideo(url);
+  }));
+
+  editorPanel.appendChild(toolbar);
+
+  // Create contenteditable div as the editor
+  const editor = document.createElement("div");
+  editor.id = "lesson-content-editor";
+  editor.contentEditable = "true";
+  editor.style.cssText = `
+    width: 100%;
+    min-height: 300px;
+    padding: 15px;
+    font-family: Arial, sans-serif;
     border: 1px solid #ccc;
     border-radius: 4px;
     box-sizing: border-box;
     margin: 10px 0;
+    background: white;
+    overflow-y: auto;
+    line-height: 1.6;
   `;
-  textarea.value = container.innerHTML;
-  editorPanel.appendChild(textarea);
 
-  // focus the textarea when editor is added
-  // we'll focus after appending the editor to DOM in addLessonEditor
+  // Parse existing HTML and display in editor
+  editor.innerHTML = container.innerHTML;
+  editorPanel.appendChild(editor);
 
+  // Helper functions for inserting elements
+  function insertElement(tag, defaultText) {
+    const selection = window.getSelection();
+    if (selection.rangeCount > 0) {
+      const el = document.createElement(tag);
+      el.textContent = defaultText;
+      const range = selection.getRangeAt(0);
+      range.collapse(false);
+      range.insertNode(el);
+      range.setStartAfter(el);
+      range.collapse(true);
+      selection.removeAllRanges();
+      selection.addRange(range);
+      editor.focus();
+    }
+  }
+
+  function insertImage(url) {
+    const img = document.createElement("img");
+    img.src = url;
+    img.style.cssText = "max-width: 100%; height: auto; margin: 10px 0; border-radius: 4px;";
+    img.onerror = () => alert("Failed to load image. Check the URL.");
+    const selection = window.getSelection();
+    if (selection.rangeCount > 0) {
+      const range = selection.getRangeAt(0);
+      range.collapse(false);
+      range.insertNode(img);
+      range.setStartAfter(img);
+      range.collapse(true);
+      selection.removeAllRanges();
+      selection.addRange(range);
+    }
+    editor.focus();
+  }
+
+  function insertVideo(url) {
+    // Extract video ID from YouTube URL
+    const videoId = extractYouTubeId(url);
+    if (!videoId) {
+      alert("Invalid YouTube URL. Please use format: https://www.youtube.com/watch?v=VIDEO_ID");
+      return;
+    }
+    const iframe = document.createElement("iframe");
+    iframe.style.cssText = `
+      width: 100%;
+      max-width: 560px;
+      height: 315px;
+      border: none;
+      border-radius: 4px;
+      margin: 10px 0;
+    `;
+    iframe.src = `https://www.youtube.com/embed/${videoId}`;
+    iframe.allow = "accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture";
+    iframe.allowFullscreen = true;
+    const selection = window.getSelection();
+    if (selection.rangeCount > 0) {
+      const range = selection.getRangeAt(0);
+      range.collapse(false);
+      range.insertNode(iframe);
+      range.setStartAfter(iframe);
+      range.collapse(true);
+      selection.removeAllRanges();
+      selection.addRange(range);
+    }
+    editor.focus();
+  }
+
+  // Helper to extract YouTube video ID
+  function extractYouTubeId(url) {
+    const match = url.match(/(?:youtube\.com\/watch\?v=|youtu\.be\/)([a-zA-Z0-9_-]{11})/);
+    return match ? match[1] : null;
+  }
+
+  // Button container
   const buttonDiv = document.createElement("div");
   buttonDiv.style.cssText = "display: flex; gap: 10px; margin-top: 10px; align-items: center;";
 
@@ -546,7 +683,7 @@ function addLessonEditor(lesson, container) {
     if (editBtn) editBtn.disabled = true;
     statusDiv.textContent = 'Saving...';
 
-    const success = await saveLessonContent(lesson, textarea.value, statusDiv);
+    const success = await saveLessonContent(lesson, editor.innerHTML, statusDiv);
 
     if (!success) {
       // Re-enable if failed
@@ -562,9 +699,8 @@ function addLessonEditor(lesson, container) {
   editorPanel.appendChild(buttonDiv);
   container.appendChild(editorPanel);
 
-  // Focus the textarea so admin can start editing immediately
-  const ta = document.getElementById('lesson-content-editor');
-  if (ta) ta.focus();
+  // Focus the editor so admin can start editing immediately
+  editor.focus();
 }
 
 // Save edited lesson content back to the backend
