@@ -94,6 +94,39 @@ def delete_lesson(lesson_id):
         return jsonify({"error": "not found"}), 404
     return "", 204
 
+
+@app.route("/api/lessons/<lesson_id>", methods=["PUT", "PATCH"]) 
+def update_lesson_content(lesson_id):
+  if not is_admin(request):
+    abort(403)
+
+  data = request.get_json(force=True) or {}
+  content = data.get("content")
+  if content is None:
+    return jsonify({"error": "content required"}), 400
+
+  # Find lesson entry to determine file path
+  lesson = next((l for l in lessons if l["id"] == lesson_id), None)
+  if lesson:
+    file_path = os.path.join(BASE_DIR, lesson["path"])
+  else:
+    # Fallback: construct from lesson_id
+    filename = f"{lesson_id}.html"
+    file_path = os.path.join(LESSONS_DIR, filename)
+
+  # Ensure directory exists and file is writable
+  try:
+    # Write the new content to the file
+    with open(file_path, "w", encoding="utf-8") as f:
+      f.write(content)
+  except FileNotFoundError:
+    return jsonify({"error": "lesson file not found"}), 404
+  except Exception as e:
+    app.logger.exception("Failed to save lesson content: %s", e)
+    return jsonify({"error": "failed to save"}), 500
+
+  return jsonify({"status": "saved"}), 200
+
 @app.route("/lessons/<path:filename>")
 def serve_lesson(filename):
     file_path = os.path.join(LESSONS_DIR, filename)
@@ -101,5 +134,27 @@ def serve_lesson(filename):
         return "Lesson not found", 404
     with open(file_path, "r", encoding="utf-8") as f:
         return f.read(), 200, {"Content-Type": "text/html; charset=utf-8"}
+
+@app.route("/lessons/<path:filename>", methods=["PUT", "PATCH"])
+def update_lesson_file(filename):
+    if not is_admin(request):
+        abort(403)
+    
+    data = request.get_json(force=True) or {}
+    content = data.get("content")
+    if content is None:
+        return jsonify({"error": "content required"}), 400
+    
+    file_path = os.path.join(LESSONS_DIR, filename)
+    if not os.path.exists(file_path):
+        return jsonify({"error": "lesson file not found"}), 404
+    
+    try:
+        with open(file_path, "w", encoding="utf-8") as f:
+            f.write(content)
+        return jsonify({"status": "saved"}), 200
+    except Exception as e:
+        app.logger.exception("Failed to save lesson: %s", e)
+        return jsonify({"error": "failed to save"}), 500
 
 
