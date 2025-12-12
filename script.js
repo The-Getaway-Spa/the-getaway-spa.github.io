@@ -16,11 +16,27 @@ if (sessionStorage.getItem('loggedIn') !== 'true') {
 
 // Read role set by register.js ('admin' or 'student')
 const adminBadge = document.getElementById('admin-badge');
+const separator = document.getElementById('separator');
 if (role === 'admin' && adminBadge) {
   adminBadge.style.display = 'block';   // show ADMIN MODE
+  if (separator) separator.style.display = 'inline'; // show separator
 } else if (adminBadge) {
   adminBadge.style.display = 'none';    // hide for students
+  if (separator) separator.style.display = 'none'; // hide separator
 }
+
+// Logout button: visible to all users. Clears session and returns to index.
+const logoutBtn = document.getElementById('logoutBtn');
+function logoutUser() {
+  try {
+    sessionStorage.removeItem('loggedIn');
+    sessionStorage.removeItem('role');
+  } catch (e) {
+    // ignore storage errors
+  }
+  window.location.href = 'index.html';
+}
+if (logoutBtn) logoutBtn.addEventListener('click', logoutUser);
 
 // Show admin controls (add button) only for admins
 const adminControls = document.getElementById('admin-controls');
