@@ -677,8 +677,12 @@ function addLessonEditor(lesson, container) {
     line-height: 1.6;
   `;
 
-  // Parse existing HTML and display in editor
-  editor.innerHTML = container.innerHTML;
+  // Parse existing HTML and display in editor, but exclude the edit button itself
+  // Clone container and remove any edit buttons before putting content in editor
+  const contentClone = container.cloneNode(true);
+  const editBtns = contentClone.querySelectorAll('#lesson-edit-btn, #lesson-edit-quiz-btn');
+  editBtns.forEach(btn => btn.remove());
+  editor.innerHTML = contentClone.innerHTML;
   editorPanel.appendChild(editor);
 
   // Helper functions for inserting elements
