@@ -111,10 +111,63 @@ async function removeLesson(lessonId, liElement) {
   }
 } // end method removeLesson
 
-// When admin clicks "+ Add Lesson"
+// When admin clicks "+ Add Lesson" — now offers Lesson or Quiz creation
 if (addLessonBtn && role === "admin") {
+  // helper: show a small modal with three buttons and return the choice
+  function showCreateChoiceDialog() {
+    return new Promise(resolve => {
+      const overlay = document.createElement('div');
+      overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.4);display:flex;align-items:center;justify-content:center;z-index:2000;';
+
+      const box = document.createElement('div');
+      box.style.cssText = 'background:#fff;padding:18px;border-radius:8px;min-width:280px;box-shadow:0 8px 24px rgba(0,0,0,0.2);text-align:center;';
+      const title = document.createElement('div');
+      title.textContent = 'Create new item';
+      title.style.cssText = 'font-weight:700;margin-bottom:8px';
+      const msg = document.createElement('div');
+      msg.textContent = 'Would you like to create a Lesson or a Quiz?';
+      msg.style.marginBottom = '14px';
+
+      const btnRow = document.createElement('div');
+      btnRow.style.cssText = 'display:flex;gap:8px;justify-content:center;';
+
+      const lessonBtn = document.createElement('button');
+      lessonBtn.textContent = 'Lesson';
+      lessonBtn.style.cssText = 'padding:8px 12px;border-radius:6px;border:1px solid #1976d2;background:#fff;color:#1976d2;cursor:pointer;';
+      lessonBtn.onclick = () => { document.body.removeChild(overlay); resolve('lesson'); };
+
+      const quizBtn = document.createElement('button');
+      quizBtn.textContent = 'Quiz';
+      quizBtn.style.cssText = 'padding:8px 12px;border-radius:6px;border:none;background:#1976d2;color:#fff;cursor:pointer;';
+      quizBtn.onclick = () => { document.body.removeChild(overlay); resolve('quiz'); };
+
+      const cancelBtn = document.createElement('button');
+      cancelBtn.textContent = 'Cancel';
+      cancelBtn.style.cssText = 'padding:8px 12px;border-radius:6px;border:1px solid #ccc;background:#fff;color:#333;cursor:pointer;';
+      cancelBtn.onclick = () => { document.body.removeChild(overlay); resolve(null); };
+
+      btnRow.appendChild(lessonBtn);
+      btnRow.appendChild(quizBtn);
+      btnRow.appendChild(cancelBtn);
+
+      box.appendChild(title);
+      box.appendChild(msg);
+      box.appendChild(btnRow);
+      overlay.appendChild(box);
+      document.body.appendChild(overlay);
+
+      // focus quiz button by default for keyboard users
+      quizBtn.focus();
+    });
+  }
+
   addLessonBtn.addEventListener("click", async () => {
-    const name = prompt("Enter a name for the new lesson:");
+    // Ask admin whether to create a Lesson or a Quiz (three-button dialog)
+    const choice = await showCreateChoiceDialog();
+    if (!choice) return; // cancelled
+    const makeQuiz = choice === 'quiz';
+
+    const name = prompt(`Enter a name for the new ${makeQuiz ? 'quiz' : 'lesson'}:`);
     if (!name) return;
 
     try {
@@ -140,6 +193,35 @@ if (addLessonBtn && role === "admin") {
       const savedLesson = await res.json();
       const li = createLessonListItem(savedLesson);
       lessonList.appendChild(li);
+
+      // If admin chose Quiz, immediately replace the new file with a quiz template and open quiz editor
+      if (makeQuiz) {
+        // Build initial quiz HTML wrapper with an empty questions array inside a script tag
+        const title = savedLesson.title || name;
+        const quizTemplate = `<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>${title}</title>
+</head>
+<body>
+  <h1>${title}</h1>
+  <div data-quiz="true"></div>
+  <script id="quiz-data" type="application/json">${JSON.stringify({questions: []})}</script>
+</body>
+</html>`;
+
+        // Save the quiz template to the lesson file using the same save routine (which uses file path)
+        // create a temporary statusDiv to pass into saveLessonContent
+        const tempStatus = document.createElement('div');
+        tempStatus.textContent = 'Saving quiz...';
+        await saveLessonContent(savedLesson, quizTemplate, tempStatus);
+
+        // After saving, load the lesson content and open quiz editor
+        loadLessonContent(savedLesson);
+        // Open editor once content loads (give a moment)
+        setTimeout(() => addQuizEditor(savedLesson, document.getElementById('lesson-container')), 300);
+      }
     } catch (err) {
       console.error(err);
       alert("Network error while creating lesson.");
@@ -417,7 +499,47 @@ function loadLessonContent(lesson) {
     .then(html => {
       container.innerHTML = html;
 
-      // If admin, add an edit button (admin must click to open editor)
+      // Detect if this lesson contains quiz data
+      const quizScript = container.querySelector('#quiz-data');
+      const isQuiz = !!quizScript || !!container.querySelector('[data-quiz]');
+
+      if (isQuiz) {
+        // If non-admin, render the quiz UI for users
+        if (role !== 'admin') {
+          renderQuizFromContainer(container);
+          return;
+        }
+        // Admins: add an Edit Quiz button
+        const existingEditQuizBtn = document.getElementById('lesson-edit-quiz-btn');
+        if (existingEditQuizBtn && existingEditQuizBtn.parentNode) existingEditQuizBtn.parentNode.removeChild(existingEditQuizBtn);
+
+        const editQuizBtn = document.createElement('button');
+        editQuizBtn.id = 'lesson-edit-quiz-btn';
+        editQuizBtn.textContent = 'Edit Quiz';
+        editQuizBtn.style.cssText = `
+          display: inline-block;
+          margin-top: 18px;
+          margin-left: 8px;
+          padding: 8px 14px;
+          background: #1976d2;
+          color: #fff;
+          border: none;
+          border-radius: 6px;
+          cursor: pointer;
+        `;
+
+        editQuizBtn.addEventListener('click', (e) => {
+          e.stopPropagation();
+          const existingEditor = document.getElementById('lesson-editor-panel');
+          if (existingEditor) return;
+          addQuizEditor(lesson, container);
+        });
+
+        container.appendChild(editQuizBtn);
+        return;
+      }
+
+      // If not a quiz, provide the regular lesson editor for admins
       if (role === 'admin') {
         // Remove any existing edit button to avoid duplicates
         const existingEditBtn = document.getElementById('lesson-edit-btn');
@@ -703,10 +825,282 @@ function addLessonEditor(lesson, container) {
   editor.focus();
 }
 
+  // Render a quiz UI for non-admin users from a loaded lesson container
+  function renderQuizFromContainer(container) {
+    try {
+      const script = container.querySelector('#quiz-data');
+      const raw = script ? script.textContent.trim() : null;
+      const quiz = raw ? JSON.parse(raw) : { questions: [] };
+
+      // Build quiz UI
+      const quizRoot = document.createElement('div');
+      quizRoot.className = 'user-quiz-root';
+      quizRoot.style.cssText = 'padding:20px; background:#fff; border-radius:8px;';
+
+      if (!quiz.questions || !quiz.questions.length) {
+        quizRoot.innerHTML = '<p>No questions available for this quiz.</p>';
+        container.innerHTML = '';
+        container.appendChild(quizRoot);
+        return;
+      }
+
+      let current = 0;
+      const answers = new Array(quiz.questions.length).fill(null);
+
+      function showQuestion(i) {
+        const q = quiz.questions[i];
+        quizRoot.innerHTML = '';
+        const qnum = document.createElement('div');
+        qnum.textContent = `Question ${i + 1} of ${quiz.questions.length}`;
+        qnum.style.fontWeight = '700';
+        qnum.style.marginBottom = '8px';
+        quizRoot.appendChild(qnum);
+
+        const qtext = document.createElement('div');
+        qtext.textContent = q.text;
+        qtext.style.marginBottom = '12px';
+        quizRoot.appendChild(qtext);
+
+        const opts = document.createElement('div');
+        opts.style.display = 'flex';
+        opts.style.flexDirection = 'column';
+        opts.style.gap = '8px';
+
+        q.options.forEach((opt, idx) => {
+          const label = document.createElement('label');
+          label.style.cursor = 'pointer';
+          const radio = document.createElement('input');
+          radio.type = 'radio';
+          radio.name = 'quiz-option';
+          radio.checked = answers[i] === idx;
+          radio.onchange = () => answers[i] = idx;
+          label.appendChild(radio);
+          const span = document.createElement('span');
+          span.textContent = ' ' + opt;
+          label.appendChild(span);
+          opts.appendChild(label);
+        });
+
+        quizRoot.appendChild(opts);
+
+        const nav = document.createElement('div');
+        nav.style.display = 'flex';
+        nav.style.justifyContent = 'space-between';
+        nav.style.marginTop = '16px';
+
+        const prev = document.createElement('button');
+        prev.textContent = '← Previous';
+        prev.disabled = i === 0;
+        prev.onclick = () => { current = Math.max(0, current - 1); showQuestion(current); };
+
+        const next = document.createElement('button');
+        next.textContent = i === quiz.questions.length - 1 ? 'Submit' : 'Next →';
+        next.onclick = () => {
+          // require answer
+          if (answers[i] === null) { alert('Please select an answer before continuing.'); return; }
+          if (i < quiz.questions.length - 1) { current++; showQuestion(current); } else { finishQuiz(); }
+        };
+
+        nav.appendChild(prev);
+        nav.appendChild(next);
+        quizRoot.appendChild(nav);
+      }
+
+      function finishQuiz() {
+        let correct = 0;
+        quiz.questions.forEach((q, idx) => { if (answers[idx] === q.correct) correct++; });
+        const pct = Math.round((correct / quiz.questions.length) * 100);
+        quizRoot.innerHTML = `<h3>Quiz Complete</h3><p>Your score: ${pct}% (${correct}/${quiz.questions.length})</p>`;
+        const msg = document.createElement('div');
+        msg.style.marginTop = '12px';
+        if (pct >= 75) {
+          msg.innerHTML = '<strong style="color:green">You passed the quiz!</strong>';
+        } else {
+          msg.innerHTML = '<strong style="color:red">You did not pass. Try again.</strong>';
+        }
+        quizRoot.appendChild(msg);
+
+        const retry = document.createElement('button');
+        retry.textContent = 'Retake Quiz';
+        retry.style.marginTop = '12px';
+        retry.onclick = () => { for (let i=0;i<answers.length;i++) answers[i]=null; current=0; showQuestion(0); };
+        quizRoot.appendChild(retry);
+      }
+
+      container.innerHTML = '';
+      container.appendChild(quizRoot);
+      showQuestion(0);
+    } catch (err) {
+      console.error('Failed to render quiz', err);
+    }
+  }
+
+  // Admin quiz editor: allows creating/editing multiple-choice questions and saving them into the lesson file
+  function addQuizEditor(lesson, container) {
+    // Parse existing quiz data if present
+    const existingScript = container.querySelector('#quiz-data');
+    let quiz = { questions: [] };
+    if (existingScript) {
+      try { quiz = JSON.parse(existingScript.textContent || '{}'); } catch (e) { quiz = { questions: [] }; }
+    }
+
+    // Create editor panel similar to lesson editor
+    const editorPanel = document.createElement('div');
+    editorPanel.id = 'lesson-editor-panel';
+    editorPanel.style.cssText = `
+      margin-top: 30px;
+      padding: 20px;
+      border: 2px solid #8e24aa;
+      border-radius: 8px;
+      background: #fff;
+    `;
+
+    const title = document.createElement('h3');
+    title.textContent = 'Quiz Editor';
+    editorPanel.appendChild(title);
+
+    const list = document.createElement('div');
+    list.id = 'quiz-question-list';
+    list.style.display = 'flex';
+    list.style.flexDirection = 'column';
+    list.style.gap = '12px';
+
+    function renderQuestionEditor(q, idx) {
+      const wrap = document.createElement('div');
+      wrap.style.border = '1px solid #ddd';
+      wrap.style.padding = '10px';
+      wrap.style.borderRadius = '6px';
+
+      const qLabel = document.createElement('input');
+      qLabel.type = 'text';
+      qLabel.value = q.text || '';
+      qLabel.placeholder = 'Question text';
+      qLabel.style.width = '100%';
+      wrap.appendChild(qLabel);
+
+      const optsWrap = document.createElement('div');
+      optsWrap.style.display = 'flex';
+      optsWrap.style.flexDirection = 'column';
+      optsWrap.style.marginTop = '8px';
+      q.options = q.options || [];
+
+      q.options.forEach((opt, i) => {
+        const row = document.createElement('div');
+        row.style.display = 'flex';
+        row.style.gap = '8px';
+        row.style.alignItems = 'center';
+
+        const radio = document.createElement('input');
+        radio.type = 'radio';
+        radio.name = `correct-${idx}`;
+        radio.checked = q.correct === i;
+        radio.onchange = () => q.correct = i;
+
+        const optInput = document.createElement('input');
+        optInput.type = 'text';
+        optInput.value = opt;
+        optInput.style.flex = '1';
+        optInput.oninput = () => q.options[i] = optInput.value;
+
+        const removeOpt = document.createElement('button');
+        removeOpt.textContent = 'Remove';
+        removeOpt.onclick = () => { q.options.splice(i,1); refreshList(); };
+
+        row.appendChild(radio);
+        row.appendChild(optInput);
+        row.appendChild(removeOpt);
+        optsWrap.appendChild(row);
+      });
+
+      const addOpt = document.createElement('button');
+      addOpt.textContent = 'Add Option';
+      addOpt.onclick = () => { q.options.push('New option'); refreshList(); };
+      addOpt.style.marginTop = '8px';
+      wrap.appendChild(optsWrap);
+      wrap.appendChild(addOpt);
+
+      const removeQ = document.createElement('button');
+      removeQ.textContent = 'Remove Question';
+      removeQ.style.marginLeft = '8px';
+      removeQ.onclick = () => { quiz.questions.splice(idx,1); refreshList(); };
+      wrap.appendChild(removeQ);
+
+      return {wrap, qLabel};
+    }
+
+    function refreshList() {
+      list.innerHTML = '';
+      quiz.questions.forEach((q, idx) => {
+        const {wrap, qLabel} = renderQuestionEditor(q, idx);
+        // update q.text from input on blur
+        qLabel.onblur = () => q.text = qLabel.value;
+        list.appendChild(wrap);
+      });
+    }
+
+    refreshList();
+    editorPanel.appendChild(list);
+
+    const addQ = document.createElement('button');
+    addQ.textContent = 'Add Question';
+    addQ.onclick = () => { quiz.questions.push({ text: 'New question', options: ['Option 1','Option 2'], correct: 0 }); refreshList(); };
+    addQ.style.marginTop = '10px';
+    editorPanel.appendChild(addQ);
+
+    const statusDiv = document.createElement('div');
+    statusDiv.style.marginTop = '12px';
+    editorPanel.appendChild(statusDiv);
+
+    const saveBtn = document.createElement('button');
+    saveBtn.textContent = 'Save Quiz';
+    saveBtn.style.marginTop = '12px';
+    saveBtn.onclick = async () => {
+      // Basic validation
+      for (const q of quiz.questions) {
+        if (!q.text || !q.options || q.options.length < 2) { alert('Each question needs text and at least two options.'); return; }
+        if (typeof q.correct !== 'number' || q.correct < 0 || q.correct >= q.options.length) { alert('Please mark a correct option for every question.'); return; }
+      }
+
+      const title = lesson.title || 'Quiz';
+      const html = `<!DOCTYPE html>
+  <html lang="en">
+  <head><meta charset="utf-8"><title>${title}</title></head>
+  <body>
+    <h1>${title}</h1>
+    <div data-quiz="true"></div>
+    <script id="quiz-data" type="application/json">${JSON.stringify(quiz)}</script>
+  </body>
+  </html>`;
+
+      statusDiv.textContent = 'Saving quiz...';
+      const ok = await saveLessonContent(lesson, html, statusDiv);
+      if (ok) {
+        statusDiv.textContent = 'Saved.';
+        // reload lesson content to show updated view
+        loadLessonContent(lesson);
+        if (editorPanel && editorPanel.parentNode) editorPanel.remove();
+      } else {
+        statusDiv.textContent = 'Save failed.';
+      }
+    };
+
+    const cancelBtn = document.createElement('button');
+    cancelBtn.textContent = 'Cancel';
+    cancelBtn.style.marginLeft = '8px';
+    cancelBtn.onclick = () => { if (editorPanel && editorPanel.parentNode) editorPanel.remove(); };
+
+    editorPanel.appendChild(saveBtn);
+    editorPanel.appendChild(cancelBtn);
+
+    container.appendChild(editorPanel);
+  }
+
 // Save edited lesson content back to the backend
 async function saveLessonContent(lesson, newHtml, statusDiv) {
   try {
-    const url = `${API_BASE}/api/lessons/${encodeURIComponent(lesson.id)}`;
+    // The backend exposes a PUT/PATCH handler at /lessons/<filename>
+    // Use the lesson.path (example: "lessons/lesson1.html") to address that route.
+    const url = `${API_BASE}/${lesson.path.replace(/^\/+/, '')}`;
 
     // Try PUT first
     let res = await fetch(url, {
