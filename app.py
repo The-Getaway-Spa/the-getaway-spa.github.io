@@ -2,6 +2,11 @@ import os
 from flask import Flask, request, jsonify, abort
 from uuid import uuid4
 from flask_cors import CORS
+from supabase import create_client, Client
+
+SUPABASE_URL = os.environ["https://evmjohbrenbzwshptjro.supabase.co"]
+SUPABASE_KEY = os.environ["eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImV2bWpvaGJyZW5iendzaHB0anJvIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjU2NDkxNjYsImV4cCI6MjA4MTIyNTE2Nn0.9LmdO3ZL2DevJ62WP8krMV_4Q--yTfuc3Zie4q1SsPI"]
+supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
 
 app = Flask(__name__)
 
