@@ -487,7 +487,13 @@ function loadLessonContent(lesson) {
   container.innerHTML = "<p>Loading lesson...</p>";
 
   // Fetch the lesson HTML from the Flask backend, not from localhost
-  const url = `${API_BASE}/${lesson.path.replace(/^\/+/, "")}`;
+  // Guard against missing `lesson.path` (fallback to lessons/<id>.html)
+  const lessonPath = (lesson && lesson.path) ? lesson.path : (lesson && lesson.id ? `lessons/${lesson.id}.html` : null);
+  if (!lessonPath) {
+    container.innerHTML = '<p>Lesson path not found.</p>';
+    return;
+  }
+  const url = `${API_BASE}/${lessonPath.replace(/^\/+/, "")}`;
 
   fetch(url)
     .then(res => {
