@@ -16,13 +16,29 @@ if (sessionStorage.getItem('loggedIn') !== 'true') {
 
 // Read role set by register.js ('admin' or 'student')
 const adminBadge = document.getElementById('admin-badge');
-const separator = document.getElementById('separator');
+const adminSeparator = document.getElementById('admin-separator');
+const usernameDisplay = document.getElementById('username-display');
+const userSeparator = document.getElementById('user-separator');
+
+// Determine username from sessionStorage keys commonly used
+const usernameVal = sessionStorage.getItem('username') || sessionStorage.getItem('email') || sessionStorage.getItem('user') || null;
+
 if (role === 'admin' && adminBadge) {
   adminBadge.style.display = 'block';   // show ADMIN MODE
-  if (separator) separator.style.display = 'inline'; // show separator
+  if (adminSeparator) adminSeparator.style.display = 'inline'; // show separator between admin and username
 } else if (adminBadge) {
   adminBadge.style.display = 'none';    // hide for students
-  if (separator) separator.style.display = 'none'; // hide separator
+  if (adminSeparator) adminSeparator.style.display = 'none';
+}
+
+// Show username if available
+if (usernameVal && usernameDisplay) {
+  usernameDisplay.textContent = usernameVal;
+  usernameDisplay.style.display = 'block';
+  if (userSeparator) userSeparator.style.display = 'inline';
+} else {
+  if (usernameDisplay) usernameDisplay.style.display = 'none';
+  if (userSeparator) userSeparator.style.display = 'none';
 }
 
 // Logout button: visible to all users. Clears session and returns to index.
@@ -37,6 +53,34 @@ function logoutUser() {
   window.location.href = 'index.html';
 }
 if (logoutBtn) logoutBtn.addEventListener('click', logoutUser);
+
+// Arrange top-bar placement: for admins show username+logout at top-center,
+// keep ADMIN MODE at top-right. For non-admins keep username+logout at top-right.
+;(function arrangeTopBar() {
+  const topCenter = document.getElementById('top-center');
+  const topRight = document.getElementById('top-right');
+  if (!topCenter || !topRight) return;
+
+  if (role === 'admin') {
+    if (usernameDisplay) topCenter.appendChild(usernameDisplay);
+    if (userSeparator) topCenter.appendChild(userSeparator);
+    if (logoutBtn) topCenter.appendChild(logoutBtn);
+    topCenter.style.display = 'flex';
+    topCenter.style.alignItems = 'center';
+    topCenter.style.gap = '8px';
+
+    if (adminBadge) adminBadge.style.display = 'block';
+    if (adminSeparator) adminSeparator.style.display = 'inline';
+  } else {
+    topCenter.style.display = 'none';
+    if (usernameDisplay) topRight.appendChild(usernameDisplay);
+    if (userSeparator) topRight.appendChild(userSeparator);
+    if (logoutBtn) topRight.appendChild(logoutBtn);
+
+    if (adminBadge) adminBadge.style.display = 'none';
+    if (adminSeparator) adminSeparator.style.display = 'none';
+  }
+})();
 
 // Small utility to show/hide the global loading indicator
 function showLoading(show, message) {
