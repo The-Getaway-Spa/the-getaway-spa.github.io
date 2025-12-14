@@ -559,7 +559,50 @@ function loadLessonContent(lesson) {
           addQuizEditor(lesson, container);
         });
 
+        // Build and attach a read-only preview of the quiz below the edit button
+        const previewId = `lesson-quiz-preview-${lesson.id}`;
+        // Remove any existing preview for this lesson
+        const existingPreview = document.getElementById(previewId);
+        if (existingPreview && existingPreview.parentNode) existingPreview.parentNode.removeChild(existingPreview);
+
+        const previewDiv = document.createElement('div');
+        previewDiv.id = previewId;
+        previewDiv.className = 'quiz-preview';
+        previewDiv.style.cssText = 'margin-top:12px;padding:12px;background:#fff;border-radius:6px;border:1px solid #e0e0e0;';
+
+        // Populate preview from quiz data if available
+        try {
+          const raw = quizScript ? quizScript.textContent.trim() : null;
+          const quizData = raw ? JSON.parse(raw) : { questions: [] };
+          if (!quizData.questions || !quizData.questions.length) {
+            previewDiv.innerHTML = '<em>No questions in quiz.</em>';
+          } else {
+            const list = document.createElement('div');
+            quizData.questions.forEach((q, i) => {
+              const qWrap = document.createElement('div');
+              qWrap.style.marginBottom = '10px';
+              const qTitle = document.createElement('div');
+              qTitle.style.fontWeight = '700';
+              qTitle.textContent = `${i + 1}. ${q.text || 'Untitled question'}`;
+              qWrap.appendChild(qTitle);
+              const opts = document.createElement('ul');
+              opts.style.margin = '6px 0 0 18px';
+              (q.options || []).forEach(opt => {
+                const li = document.createElement('li');
+                li.textContent = opt;
+                opts.appendChild(li);
+              });
+              qWrap.appendChild(opts);
+              list.appendChild(qWrap);
+            });
+            previewDiv.appendChild(list);
+          }
+        } catch (e) {
+          previewDiv.innerHTML = '<em>Preview unavailable.</em>';
+        }
+
         container.appendChild(editQuizBtn);
+        container.appendChild(previewDiv);
         return;
       }
 
@@ -1086,9 +1129,13 @@ function addLessonEditor(lesson, container) {
 
     // If the edit button exists, disable/hide it while editor is open
     const editQuizBtn = document.getElementById('lesson-edit-quiz-btn');
+    const previewEl = document.getElementById(`lesson-quiz-preview-${lesson.id}`);
     if (editQuizBtn) {
       editQuizBtn.disabled = true;
       editQuizBtn.style.display = 'none';
+    }
+    if (previewEl) {
+      previewEl.style.display = 'none';
     }
 
     const addQ = document.createElement('button');
@@ -1124,24 +1171,25 @@ function addLessonEditor(lesson, container) {
 
       statusDiv.textContent = 'Saving quiz...';
       const ok = await saveLessonContent(lesson, html, statusDiv);
-      if (ok) {
-        statusDiv.textContent = 'Saved.';
-        // Re-enable/show edit button in case load fails
-        if (editQuizBtn) {
-          editQuizBtn.disabled = false;
-          editQuizBtn.style.display = 'inline-block';
+        if (ok) {
+          statusDiv.textContent = 'Saved.';
+          // Re-enable/show edit button in case load fails
+          if (editQuizBtn) {
+            editQuizBtn.disabled = false;
+            editQuizBtn.style.display = 'inline-block';
+          }
+          // reload lesson content to show updated view (this will recreate preview)
+          loadLessonContent(lesson);
+          if (editorPanel && editorPanel.parentNode) editorPanel.remove();
+        } else {
+          statusDiv.textContent = 'Save failed.';
+          // Re-enable the edit button so admin can try again
+          if (editQuizBtn) {
+            editQuizBtn.disabled = false;
+            editQuizBtn.style.display = 'inline-block';
+          }
+          if (previewEl) previewEl.style.display = 'block';
         }
-        // reload lesson content to show updated view
-        loadLessonContent(lesson);
-        if (editorPanel && editorPanel.parentNode) editorPanel.remove();
-      } else {
-        statusDiv.textContent = 'Save failed.';
-        // Re-enable the edit button so admin can try again
-        if (editQuizBtn) {
-          editQuizBtn.disabled = false;
-          editQuizBtn.style.display = 'inline-block';
-        }
-      }
     };
 
     const cancelBtn = document.createElement('button');
@@ -1153,6 +1201,7 @@ function addLessonEditor(lesson, container) {
         editQuizBtn.disabled = false;
         editQuizBtn.style.display = 'inline-block';
       }
+      if (previewEl) previewEl.style.display = 'block';
     };
 
     editorPanel.appendChild(saveBtn);
