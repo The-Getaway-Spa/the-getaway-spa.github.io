@@ -553,6 +553,9 @@ function loadLessonContent(lesson) {
           e.stopPropagation();
           const existingEditor = document.getElementById('lesson-editor-panel');
           if (existingEditor) return;
+          // Hide/disable the edit button while the editor is open
+          editQuizBtn.disabled = true;
+          editQuizBtn.style.display = 'none';
           addQuizEditor(lesson, container);
         });
 
@@ -590,6 +593,9 @@ function loadLessonContent(lesson) {
             return;
           }
 
+          // Hide/disable the edit button immediately while editor opens
+          editBtn.disabled = true;
+          editBtn.style.display = 'none';
           addLessonEditor(lesson, container);
         });
 
@@ -820,7 +826,10 @@ function addLessonEditor(lesson, container) {
   // Cancel handler: remove editor and re-enable edit button
   cancelBtn.onclick = () => {
     editorPanel.remove();
-    if (editBtn) editBtn.disabled = false;
+    if (editBtn) {
+      editBtn.disabled = false;
+      editBtn.style.display = 'inline-block';
+    }
   };
 
   // Save handler: disable buttons, show inline status, perform save, then re-enable or reload
@@ -1075,6 +1084,13 @@ function addLessonEditor(lesson, container) {
     refreshList();
     editorPanel.appendChild(list);
 
+    // If the edit button exists, disable/hide it while editor is open
+    const editQuizBtn = document.getElementById('lesson-edit-quiz-btn');
+    if (editQuizBtn) {
+      editQuizBtn.disabled = true;
+      editQuizBtn.style.display = 'none';
+    }
+
     const addQ = document.createElement('button');
     addQ.textContent = 'Add Question';
     addQ.onclick = () => { quiz.questions.push({ text: 'New question', options: ['Option 1','Option 2'], correct: 0 }); refreshList(); };
@@ -1110,18 +1126,34 @@ function addLessonEditor(lesson, container) {
       const ok = await saveLessonContent(lesson, html, statusDiv);
       if (ok) {
         statusDiv.textContent = 'Saved.';
+        // Re-enable/show edit button in case load fails
+        if (editQuizBtn) {
+          editQuizBtn.disabled = false;
+          editQuizBtn.style.display = 'inline-block';
+        }
         // reload lesson content to show updated view
         loadLessonContent(lesson);
         if (editorPanel && editorPanel.parentNode) editorPanel.remove();
       } else {
         statusDiv.textContent = 'Save failed.';
+        // Re-enable the edit button so admin can try again
+        if (editQuizBtn) {
+          editQuizBtn.disabled = false;
+          editQuizBtn.style.display = 'inline-block';
+        }
       }
     };
 
     const cancelBtn = document.createElement('button');
     cancelBtn.textContent = 'Cancel';
     cancelBtn.style.marginLeft = '8px';
-    cancelBtn.onclick = () => { if (editorPanel && editorPanel.parentNode) editorPanel.remove(); };
+    cancelBtn.onclick = () => {
+      if (editorPanel && editorPanel.parentNode) editorPanel.remove();
+      if (editQuizBtn) {
+        editQuizBtn.disabled = false;
+        editQuizBtn.style.display = 'inline-block';
+      }
+    };
 
     editorPanel.appendChild(saveBtn);
     editorPanel.appendChild(cancelBtn);
