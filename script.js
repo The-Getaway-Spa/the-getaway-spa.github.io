@@ -515,7 +515,87 @@ function loadLessonContent(lesson) {
     .then(html => {
       container.innerHTML = html;
       showLoading(false);
-      // ... existing quiz detection logic ...
+
+      // Determine role at runtime (in case sessionStorage changed)
+      const currentRole = sessionStorage.getItem('role') || role;
+
+      // Detect if this lesson contains quiz data
+      const quizScript = container.querySelector('#quiz-data');
+      const isQuiz = !!quizScript || !!container.querySelector('[data-quiz]');
+
+      if (isQuiz) {
+        // If non-admin, render the quiz UI for users
+        if (currentRole !== 'admin') {
+          renderQuizFromContainer(container);
+          return;
+        }
+
+        // Admins: add an Edit Quiz button
+        const existingEditQuizBtn = document.getElementById('lesson-edit-quiz-btn');
+        if (existingEditQuizBtn && existingEditQuizBtn.parentNode) existingEditQuizBtn.parentNode.removeChild(existingEditQuizBtn);
+
+        const editQuizBtn = document.createElement('button');
+        editQuizBtn.id = 'lesson-edit-quiz-btn';
+        editQuizBtn.textContent = 'Edit Quiz';
+        editQuizBtn.style.cssText = `
+          display: inline-block;
+          margin-top: 18px;
+          margin-left: 8px;
+          padding: 8px 14px;
+          background: #1976d2;
+          color: #fff;
+          border: none;
+          border-radius: 6px;
+          cursor: pointer;
+        `;
+
+        editQuizBtn.addEventListener('click', (e) => {
+          e.stopPropagation();
+          const existingEditor = document.getElementById('lesson-editor-panel');
+          if (existingEditor) return;
+          addQuizEditor(lesson, container);
+        });
+
+        container.appendChild(editQuizBtn);
+        return;
+      }
+
+      // If not a quiz, provide the regular lesson editor for admins only
+      if (currentRole === 'admin') {
+        // Remove any existing edit button to avoid duplicates
+        const existingEditBtn = document.getElementById('lesson-edit-btn');
+        if (existingEditBtn && existingEditBtn.parentNode) existingEditBtn.parentNode.removeChild(existingEditBtn);
+
+        const editBtn = document.createElement('button');
+        editBtn.id = 'lesson-edit-btn';
+        editBtn.textContent = 'Edit Lesson';
+        editBtn.style.cssText = `
+          display: inline-block;
+          margin-top: 18px;
+          padding: 8px 14px;
+          background: #1976d2;
+          color: #fff;
+          border: none;
+          border-radius: 6px;
+          cursor: pointer;
+        `;
+
+        // When clicked, show the editor (if not already open)
+        editBtn.addEventListener('click', (e) => {
+          e.stopPropagation();
+          const existingEditor = document.getElementById('lesson-editor-panel');
+          if (existingEditor) {
+            const ta = document.getElementById('lesson-content-editor');
+            if (ta) ta.focus();
+            return;
+          }
+
+          addLessonEditor(lesson, container);
+        });
+
+        // Append the edit button after the lesson content
+        container.appendChild(editBtn);
+      }
     })
     .catch(err => {
       console.error(err);
@@ -757,6 +837,15 @@ function addLessonEditor(lesson, container) {
       saveBtn.disabled = false;
       cancelBtn.disabled = false;
       if (editBtn) editBtn.disabled = false;
+    } else {
+      // On successful save, close the editor and reload so admin sees the updated page
+      try {
+        if (editorPanel && editorPanel.parentNode) editorPanel.parentNode.removeChild(editorPanel);
+      } catch (e) { /* ignore */ }
+      // Reload only the lesson area so admin can see updated content
+      setTimeout(() => {
+        try { loadLessonContent(lesson); } catch (e) { console.error('Failed to reload lesson after save', e); }
+      }, 200);
     }
   };
 
