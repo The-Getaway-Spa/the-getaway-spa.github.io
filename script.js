@@ -109,7 +109,9 @@ function createLessonListItem(lesson) {
   const titleSpan = document.createElement("span");
   titleSpan.textContent = lesson.title;
 
+  let _wasDragged = false;
   li.onclick = () => {
+    if (_wasDragged) return; // ignore click after drag
     // clear previous selection
     document
       .querySelectorAll(".sidebar ul li.selected")
@@ -124,8 +126,26 @@ function createLessonListItem(lesson) {
 
   li.appendChild(titleSpan);
 
-  // Only add remove button for admins
+  // Make items draggable & show remove button for admins
   if (role === 'admin') {
+    li.setAttribute('draggable', 'true');
+    li.style.cursor = 'move';
+
+    li.addEventListener('dragstart', (e) => {
+      try {
+        e.dataTransfer.effectAllowed = 'move';
+        e.dataTransfer.setData('text/plain', lesson.id);
+      } catch (err) { /* some browsers may restrict dataTransfer */ }
+      _wasDragged = true;
+      li.classList.add('dragging');
+    });
+
+    li.addEventListener('dragend', () => {
+      li.classList.remove('dragging');
+      // small delay so click events that follow a drag are ignored
+      setTimeout(() => { _wasDragged = false; }, 0);
+    });
+
     const removeBtn = document.createElement("button");
     removeBtn.textContent = "✕";
     removeBtn.className = "remove-lesson-btn";
@@ -520,6 +540,14 @@ async function loadSidebarLessons() {
   const res = await fetch(`${API_BASE}/api/lessons`);
   const apiLessons = await res.json();   // <- renamed
 
+  // If a client-side saved order exists (fallback), apply it
+  try {
+    const saved = JSON.parse(localStorage.getItem('lessonOrder') || 'null');
+    if (Array.isArray(saved) && saved.length) {
+      apiLessons.sort((a, b) => (saved.indexOf(a.id) - saved.indexOf(b.id)));
+    }
+  } catch (e) { /* ignore parse errors */ }
+
   // optional: keep local cache in the outer `lessons` array
   lessons.length = 0;
   apiLessons.forEach(l => lessons.push(l));
@@ -528,7 +556,81 @@ async function loadSidebarLessons() {
     const li = createLessonListItem(lesson);
     lessonList.appendChild(li);
   });
+  // Enable drag-and-drop reordering for admins
+  try { enableLessonDragReorder(); } catch (e) { /* ignore if not available */ }
 } // end function loadSidebarLessons
+
+// Find the closest element after the pointer for reordering
+function getDragAfterElement(container, y) {
+  const draggableElements = [...container.querySelectorAll('li:not(.dragging)')];
+  return draggableElements.reduce((closest, child) => {
+    const box = child.getBoundingClientRect();
+    const offset = y - box.top - box.height / 2;
+    if (offset < 0 && offset > closest.offset) {
+      return { offset: offset, element: child };
+    } else {
+      return closest;
+    }
+  }, { offset: Number.NEGATIVE_INFINITY }).element;
+}
+
+function reorderLessonsArray(newOrderIds) {
+  if (!Array.isArray(newOrderIds)) return;
+  const map = new Map(lessons.map(l => [l.id, l]));
+  const reordered = [];
+  newOrderIds.forEach(id => {
+    if (map.has(id)) reordered.push(map.get(id));
+  });
+  // append any missing lessons (defensive)
+  lessons.forEach(l => { if (!reordered.find(r => r.id === l.id)) reordered.push(l); });
+  // mutate existing lessons array
+  lessons.length = 0;
+  reordered.forEach(r => lessons.push(r));
+}
+
+async function persistLessonOrder(ids) {
+  if (!ids || !ids.length) return;
+  try {
+    const res = await fetch(`${API_BASE}/api/lessons/reorder`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json', 'X-User-Role': role },
+      body: JSON.stringify({ order: ids })
+    });
+    if (!res.ok) throw new Error('Server rejected reorder');
+    // clear any local fallback
+    localStorage.removeItem('lessonOrder');
+    return true;
+  } catch (e) {
+    // Fallback: save to localStorage so order persists in-browser
+    try { localStorage.setItem('lessonOrder', JSON.stringify(ids)); } catch (err) { /* ignore */ }
+    return false;
+  }
+}
+
+function enableLessonDragReorder() {
+  if (role !== 'admin') return;
+  const list = document.getElementById('lesson-list');
+  if (!list) return;
+
+  list.addEventListener('dragover', (e) => {
+    e.preventDefault();
+    const afterEl = getDragAfterElement(list, e.clientY);
+    const dragging = list.querySelector('.dragging');
+    if (!dragging) return;
+    if (!afterEl) {
+      list.appendChild(dragging);
+    } else {
+      list.insertBefore(dragging, afterEl);
+    }
+  });
+
+  list.addEventListener('drop', async (e) => {
+    e.preventDefault();
+    const ids = Array.from(list.querySelectorAll('li')).map(li => li.dataset.lessonId);
+    reorderLessonsArray(ids);
+    await persistLessonOrder(ids);
+  });
+}
 
 function loadLessonContent(lesson) {
   const container = document.getElementById("lesson-container");

@@ -85,6 +85,11 @@ body { font-family: Arial, sans-serif; background: #f4f4f4; }
   background: #445878;
 }
 
+/* Visual feedback while dragging */
+.sidebar li.dragging {
+  opacity: 0.5;
+}
+
 .sidebar li.locked {
   color: gray;
   cursor: not-allowed;
