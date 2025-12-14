@@ -33,6 +33,13 @@
         </div>
     </main>
   </div>
+  <!-- Global loading overlay (hidden by default) -->
+  <div id="global-loading" style="display:none; align-items:center; justify-content:center; position:fixed; inset:0; background:rgba(0,0,0,0.25); z-index:3000;">
+    <div class="loading-box" style="background:#fff; padding:14px 18px; border-radius:8px; display:flex; gap:12px; align-items:center; box-shadow:0 8px 24px rgba(0,0,0,0.2);">
+      <div class="spinner" aria-hidden="true" style="width:28px; height:28px; border-radius:50%; border:4px solid #ddd; border-top-color:#1976d2; animation:spin 1s linear infinite;"></div>
+      <div class="loading-text" style="font-weight:600; color:#333;">Loading...</div>
+    </div>
+  </div>
   <script src="script.js"></script>
 </body>
 </html>

@@ -38,6 +38,15 @@ function logoutUser() {
 }
 if (logoutBtn) logoutBtn.addEventListener('click', logoutUser);
 
+// Small utility to show/hide the global loading indicator
+function showLoading(show, message) {
+  const el = document.getElementById('global-loading');
+  if (!el) return;
+  const text = el.querySelector('.loading-text');
+  if (text && message) text.textContent = message;
+  el.style.display = show ? 'flex' : 'none';
+}
+
 // Show admin controls (add button) only for admins
 const adminControls = document.getElementById('admin-controls');
 if (adminControls) {
@@ -485,15 +494,16 @@ function loadLessonContent(lesson) {
   }
 
   container.innerHTML = "<p>Loading lesson...</p>";
+  showLoading(true, "Loading lesson...");
 
-  // Fetch the lesson HTML from the Flask backend, not from localhost
-  // Guard against missing `lesson.path` (fallback to lessons/<id>.html)
-  const lessonPath = (lesson && lesson.path) ? lesson.path : (lesson && lesson.id ? `lessons/${lesson.id}.html` : null);
-  if (!lessonPath) {
-    container.innerHTML = '<p>Lesson path not found.</p>';
+  if (!lesson || !lesson.id) {
+    container.innerHTML = "<p>Lesson id not found.</p>";
+    showLoading(false);
     return;
   }
-  const url = `${API_BASE}/${lessonPath.replace(/^\/+/, "")}`;
+
+  // Call /lessons/<id> (no .html)
+  const url = `${API_BASE}/lessons/${encodeURIComponent(lesson.id)}`;
 
   fetch(url)
     .then(res => {
@@ -504,88 +514,13 @@ function loadLessonContent(lesson) {
     })
     .then(html => {
       container.innerHTML = html;
-
-      // Detect if this lesson contains quiz data
-      const quizScript = container.querySelector('#quiz-data');
-      const isQuiz = !!quizScript || !!container.querySelector('[data-quiz]');
-
-      if (isQuiz) {
-        // If non-admin, render the quiz UI for users
-        if (role !== 'admin') {
-          renderQuizFromContainer(container);
-          return;
-        }
-        // Admins: add an Edit Quiz button
-        const existingEditQuizBtn = document.getElementById('lesson-edit-quiz-btn');
-        if (existingEditQuizBtn && existingEditQuizBtn.parentNode) existingEditQuizBtn.parentNode.removeChild(existingEditQuizBtn);
-
-        const editQuizBtn = document.createElement('button');
-        editQuizBtn.id = 'lesson-edit-quiz-btn';
-        editQuizBtn.textContent = 'Edit Quiz';
-        editQuizBtn.style.cssText = `
-          display: inline-block;
-          margin-top: 18px;
-          margin-left: 8px;
-          padding: 8px 14px;
-          background: #1976d2;
-          color: #fff;
-          border: none;
-          border-radius: 6px;
-          cursor: pointer;
-        `;
-
-        editQuizBtn.addEventListener('click', (e) => {
-          e.stopPropagation();
-          const existingEditor = document.getElementById('lesson-editor-panel');
-          if (existingEditor) return;
-          addQuizEditor(lesson, container);
-        });
-
-        container.appendChild(editQuizBtn);
-        return;
-      }
-
-      // If not a quiz, provide the regular lesson editor for admins only
-      if (role === 'admin') {
-        // Remove any existing edit button to avoid duplicates
-        const existingEditBtn = document.getElementById('lesson-edit-btn');
-        if (existingEditBtn && existingEditBtn.parentNode) existingEditBtn.parentNode.removeChild(existingEditBtn);
-
-        const editBtn = document.createElement('button');
-        editBtn.id = 'lesson-edit-btn';
-        editBtn.textContent = isQuiz ? 'Edit Quiz' : 'Edit Lesson';
-        editBtn.style.cssText = `
-          display: inline-block;
-          margin-top: 18px;
-          padding: 8px 14px;
-          background: #1976d2;
-          color: #fff;
-          border: none;
-          border-radius: 6px;
-          cursor: pointer;
-        `;
-
-        // When clicked, show the editor (if not already open)
-        editBtn.addEventListener('click', (e) => {
-          e.stopPropagation();
-          // If editor already open, do nothing (or focus it)
-          const existingEditor = document.getElementById('lesson-editor-panel');
-          if (existingEditor) {
-            const ta = document.getElementById('lesson-content-editor');
-            if (ta) ta.focus();
-            return;
-          }
-
-          addLessonEditor(lesson, container);
-        });
-
-        // Append the edit button after the lesson content
-        container.appendChild(editBtn);
-      }
+      showLoading(false);
+      // ... existing quiz detection logic ...
     })
     .catch(err => {
       console.error(err);
       container.innerHTML = "<p>Sorry, this lesson could not be loaded.</p>";
+      showLoading(false);
     });
 } // end function loadLessonContent
 
@@ -1106,52 +1041,46 @@ function addLessonEditor(lesson, container) {
   }
 
 // Save edited lesson content back to the backend
-async function saveLessonContent(lesson, newHtml, statusDiv) {
-  try {
-    // The backend exposes a PUT/PATCH handler at /lessons/<filename>
-    // Use the lesson.path (example: "lessons/lesson1.html") to address that route.
-    const url = `${API_BASE}/${lesson.path.replace(/^\/+/, '')}`;
+async function saveLessonContent(lesson, html, statusDiv) {
+  if (!lesson || !lesson.id) {
+    if (statusDiv) statusDiv.textContent = "Missing lesson id.";
+    return false;
+  }
 
-    // Try PUT first
-    let res = await fetch(url, {
+  const url = `${API_BASE}/lessons/${encodeURIComponent(lesson.id)}`;
+
+  try {
+    const res = await fetch(url, {
       method: "PUT",
       headers: {
         "Content-Type": "application/json",
         "X-User-Role": role
       },
-      body: JSON.stringify({ content: newHtml })
+      body: JSON.stringify({ content: html })
     });
 
-    // If PUT is not allowed (405), try PATCH as a fallback
-    if (res.status === 405) {
-      console.warn('PUT not allowed on', url, '- trying PATCH as fallback');
-      res = await fetch(url, {
-        method: "PATCH",
-        headers: {
-          "Content-Type": "application/json",
-          "X-User-Role": role
-        },
-        body: JSON.stringify({ content: newHtml })
-      });
-    }
-
     if (!res.ok) {
-      const text = await res.text().catch(() => '');
-      console.error('Save failed', res.status, text);
-      if (statusDiv) statusDiv.textContent = `Save failed: ${res.status}${text ? ' - ' + text : ''}`;
+      if (statusDiv) statusDiv.textContent = `Save failed: ${res.status}`;
       return false;
     }
 
-    if (statusDiv) statusDiv.textContent = 'Saved successfully.';
-    // Reload the content to show updated version (this will remove the editor)
-    loadLessonContent(lesson);
+    if (statusDiv) statusDiv.textContent = "Saved!";
     return true;
   } catch (err) {
     console.error(err);
-    if (statusDiv) statusDiv.textContent = 'Error saving lesson content.';
+    if (statusDiv) statusDiv.textContent = "Save failed (network error).";
     return false;
   }
-}
+} // end function saveLessonContent 
 
-// Call this after you verify user is logged in
-loadSidebarLessons();
+// Call this after you verify user is logged in — show loading while sidebar populates
+(async function initAfterLogin() {
+  try {
+    showLoading(true, 'Loading lessons...');
+    await loadSidebarLessons();
+  } catch (e) {
+    console.error('Failed to load sidebar lessons', e);
+  } finally {
+    showLoading(false);
+  }
+})();

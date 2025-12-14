@@ -188,3 +188,9 @@ main > div {
 }
 
 #login-panel p#login-status { margin-top: 10px; color: #333; }
+
+/* Global loading overlay styles */
+#global-loading { display: none; }
+.loading-box { max-width: 320px; }
+.loading-text { font-size: 1rem; }
+@keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
