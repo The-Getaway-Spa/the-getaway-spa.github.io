@@ -816,6 +816,18 @@ function addLessonEditor(lesson, container) {
   editorTitle.textContent = "Edit Lesson Content";
   editorPanel.appendChild(editorTitle);
 
+  // Title input so admins can change the lesson title
+  const titleLabel = document.createElement('div');
+  titleLabel.textContent = 'Title:';
+  titleLabel.style.cssText = 'font-weight:700;margin-top:6px;margin-bottom:6px;';
+  const titleInput = document.createElement('input');
+  titleInput.id = 'lesson-editor-title';
+  titleInput.type = 'text';
+  titleInput.value = lesson.title || '';
+  titleInput.style.cssText = 'width:100%;padding:8px;border:1px solid #ccc;border-radius:4px;margin-bottom:10px;box-sizing:border-box;';
+  editorPanel.appendChild(titleLabel);
+  editorPanel.appendChild(titleInput);
+
   // Create toolbar
   const toolbar = document.createElement("div");
   toolbar.style.cssText = `
@@ -1191,6 +1203,18 @@ function addLessonEditor(lesson, container) {
     title.textContent = 'Quiz Editor';
     editorPanel.appendChild(title);
 
+    // Title input for quiz (allows changing the lesson/quiz title)
+    const titleLabel = document.createElement('div');
+    titleLabel.textContent = 'Title:';
+    titleLabel.style.cssText = 'font-weight:700;margin-top:6px;margin-bottom:6px;';
+    const titleInput = document.createElement('input');
+    titleInput.id = 'lesson-editor-title';
+    titleInput.type = 'text';
+    titleInput.value = lesson.title || '';
+    titleInput.style.cssText = 'width:100%;padding:8px;border:1px solid #ccc;border-radius:4px;margin-bottom:10px;box-sizing:border-box;';
+    editorPanel.appendChild(titleLabel);
+    editorPanel.appendChild(titleInput);
+
     const list = document.createElement('div');
     list.id = 'quiz-question-list';
     list.style.display = 'flex';
@@ -1304,12 +1328,13 @@ function addLessonEditor(lesson, container) {
         if (typeof q.correct !== 'number' || q.correct < 0 || q.correct >= q.options.length) { alert('Please mark a correct option for every question.'); return; }
       }
 
-      const title = lesson.title || 'Quiz';
+      const ti = document.getElementById('lesson-editor-title');
+      const titleVal = (ti && ti.value && ti.value.trim()) ? ti.value.trim() : (lesson.title || 'Quiz');
       const html = `<!DOCTYPE html>
   <html lang="en">
-  <head><meta charset="utf-8"><title>${title}</title></head>
+  <head><meta charset="utf-8"><title>${titleVal}</title></head>
   <body>
-    <h1>${title}</h1>
+    <h1>${titleVal}</h1>
     <div data-quiz="true"></div>
     <script id="quiz-data" type="application/json">${JSON.stringify(quiz)}</script>
   </body>
@@ -1366,13 +1391,22 @@ async function saveLessonContent(lesson, html, statusDiv) {
   const url = `${API_BASE}/lessons/${encodeURIComponent(lesson.id)}`;
 
   try {
+    const body = { content: html };
+    // If a title input exists in the editor, include it in the request
+    try {
+      const titleInput = document.getElementById('lesson-editor-title');
+      if (titleInput && titleInput.value && titleInput.value.trim()) {
+        body.title = titleInput.value.trim();
+      }
+    } catch (e) { /* ignore DOM errors */ }
+
     const res = await fetch(url, {
       method: "PUT",
       headers: {
         "Content-Type": "application/json",
         "X-User-Role": role
       },
-      body: JSON.stringify({ content: html })
+      body: JSON.stringify(body)
     });
 
     if (!res.ok) {
@@ -1381,6 +1415,19 @@ async function saveLessonContent(lesson, html, statusDiv) {
     }
 
     if (statusDiv) statusDiv.textContent = "Saved!";
+
+    // If title changed, update client-side model and sidebar label
+    try {
+      if (body.title) {
+        lesson.title = body.title;
+        const li = document.querySelector(`#lesson-list li[data-lesson-id="${lesson.id}"]`);
+        if (li) {
+          const span = li.querySelector('span');
+          if (span) span.textContent = body.title;
+        }
+      }
+    } catch (e) { /* ignore DOM update errors */ }
+
     return true;
   } catch (err) {
     console.error(err);

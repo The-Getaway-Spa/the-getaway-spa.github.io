@@ -1,4 +1,5 @@
 import os
+import re
 from flask import Flask, request, jsonify, abort
 from uuid import uuid4
 from flask_cors import CORS
@@ -84,10 +85,40 @@ def update_lesson_file(lesson_id):
 
     data = request.get_json(force=True) or {}
     content = data.get("content")
-    if content is None:
-        return jsonify({"error": "content required"}), 400
+    title = data.get("title")
 
-    resp = supabase.table("lessons").update({"html": content}).eq("id", lesson_id).execute()
+    if content is None and title is None:
+        return jsonify({"error": "content or title required"}), 400
+
+    updates = {}
+
+    # If title provided, normalize
+    if isinstance(title, str):
+        new_title = title.strip()
+        if new_title:
+            updates["title"] = new_title
+
+    # If content provided, optionally inject the provided title into <title> and first <h1>
+    if isinstance(content, str):
+        updated_content = content
+        if updates.get("title"):
+            # replace or inject <title>...</title>
+            if re.search(r"<title>.*?</title>", updated_content, flags=re.IGNORECASE | re.DOTALL):
+                updated_content = re.sub(r"(<title>).*?(</title>)", r"\1" + updates["title"] + r"\2", updated_content, flags=re.IGNORECASE | re.DOTALL)
+            else:
+                # try to inject into <head>
+                updated_content = re.sub(r"(</head>)", f"  <title>{updates['title']}</title>\n\1", updated_content, count=1, flags=re.IGNORECASE | re.DOTALL)
+
+            # replace first <h1>...</h1> if present
+            if re.search(r"<h1[^>]*>.*?</h1>", updated_content, flags=re.IGNORECASE | re.DOTALL):
+                updated_content = re.sub(r"(<h1[^>]*>).*?(</h1>)", r"\1" + updates["title"] + r"\2", updated_content, count=1, flags=re.IGNORECASE | re.DOTALL)
+
+        updates["html"] = updated_content
+
+    if not updates:
+        return jsonify({"error": "nothing to update"}), 400
+
+    resp = supabase.table("lessons").update(updates).eq("id", lesson_id).execute()
     if not resp.data:
         return jsonify({"error": "lesson not found"}), 404
     return jsonify({"status": "saved"}), 200
