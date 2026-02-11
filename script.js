@@ -9,29 +9,25 @@ const addLessonBtn = document.getElementById("add-lesson-btn");
 // Auth / role handling
 // --------------------
 
-// Simple front-end guard: require login
 if (sessionStorage.getItem('loggedIn') !== 'true') {
   window.location.href = 'index.html';
-}
+// ...existing code...
 
-// Read role set by register.js ('admin' or 'student')
 const adminBadge = document.getElementById('admin-badge');
 const adminSeparator = document.getElementById('admin-separator');
 const usernameDisplay = document.getElementById('username-display');
 const userSeparator = document.getElementById('user-separator');
 
-// Determine username from sessionStorage keys commonly used
 const usernameVal = sessionStorage.getItem('username') || sessionStorage.getItem('email') || sessionStorage.getItem('user') || null;
 
 if (role === 'admin' && adminBadge) {
-  adminBadge.style.display = 'block';   // show ADMIN MODE
-  if (adminSeparator) adminSeparator.style.display = 'inline'; // show separator between admin and username
+  adminBadge.style.display = 'block';
+  if (adminSeparator) adminSeparator.style.display = 'inline';
 } else if (adminBadge) {
-  adminBadge.style.display = 'none';    // hide for students
+  adminBadge.style.display = 'none';
   if (adminSeparator) adminSeparator.style.display = 'none';
 }
 
-// Show username if available
 if (usernameVal && usernameDisplay) {
   usernameDisplay.textContent = usernameVal;
   usernameDisplay.style.display = 'block';
@@ -41,22 +37,17 @@ if (usernameVal && usernameDisplay) {
   if (userSeparator) userSeparator.style.display = 'none';
 }
 
-// Logout button: visible to all users. Clears session and returns to index.
 const logoutBtn = document.getElementById('logoutBtn');
 function logoutUser() {
   try {
     sessionStorage.removeItem('loggedIn');
     sessionStorage.removeItem('role');
-  } catch (e) {
-    // ignore storage errors
-  }
+  } catch (e) {}
   window.location.href = 'index.html';
 }
 if (logoutBtn) logoutBtn.addEventListener('click', logoutUser);
 
-// Arrange top-bar placement: for admins show username+logout at top-center,
-// keep ADMIN MODE at top-right. For non-admins keep username+logout at top-right.
-;(function arrangeTopBar() {
+(function arrangeTopBar() {
   const topCenter = document.getElementById('top-center');
   const topRight = document.getElementById('top-right');
   if (!topCenter || !topRight) return;
@@ -68,21 +59,18 @@ if (logoutBtn) logoutBtn.addEventListener('click', logoutUser);
     topCenter.style.display = 'flex';
     topCenter.style.alignItems = 'center';
     topCenter.style.gap = '8px';
-
-    if (adminBadge) adminBadge.style.display = 'block';
-    if (adminSeparator) adminSeparator.style.display = 'inline';
+    if (adminBadge) topRight.appendChild(adminBadge);
+    if (adminSeparator) topRight.appendChild(adminSeparator);
   } else {
     topCenter.style.display = 'none';
     if (usernameDisplay) topRight.appendChild(usernameDisplay);
     if (userSeparator) topRight.appendChild(userSeparator);
     if (logoutBtn) topRight.appendChild(logoutBtn);
-
     if (adminBadge) adminBadge.style.display = 'none';
     if (adminSeparator) adminSeparator.style.display = 'none';
   }
 })();
 
-// Small utility to show/hide the global loading indicator
 function showLoading(show, message) {
   const el = document.getElementById('global-loading');
   if (!el) return;
@@ -91,16 +79,13 @@ function showLoading(show, message) {
   el.style.display = show ? 'flex' : 'none';
 }
 
-// Show admin controls (add button) only for admins
 const adminControls = document.getElementById('admin-controls');
 if (adminControls) {
   adminControls.style.display = role === 'admin' ? 'block' : 'none';
 }
 
-// simple in-memory store; you can persist to backend later
 const lessons = [];
 
-// Helper to create a sidebar item
 function createLessonListItem(lesson) {
   const li = document.createElement("li");
   li.classList.add("admin-owned");
@@ -110,71 +95,50 @@ function createLessonListItem(lesson) {
   titleSpan.textContent = lesson.title;
 
   let _wasDragged = false;
-  li.onclick = () => {
-    if (_wasDragged) return; // ignore click after drag
-    // clear previous selection
-    document
-      .querySelectorAll(".sidebar ul li.selected")
-      .forEach(el => el.classList.remove("selected"));
-
-    // mark this as selected
+  li.onclick = function() {
+    if (_wasDragged) return;
+    var selectedEls = document.querySelectorAll(".sidebar ul li.selected");
+    selectedEls.forEach(function(el) { el.classList.remove("selected"); });
     li.classList.add("selected");
-
-    // load lesson HTML into <main>
     loadLessonContent(lesson);
   };
-
   li.appendChild(titleSpan);
-
-  // Make items draggable & show remove button for admins
   if (role === 'admin') {
     li.setAttribute('draggable', 'true');
     li.style.cursor = 'move';
-
-    li.addEventListener('dragstart', (e) => {
-      try {
-        e.dataTransfer.effectAllowed = 'move';
-        e.dataTransfer.setData('text/plain', lesson.id);
-      } catch (err) { /* some browsers may restrict dataTransfer */ }
+    li.addEventListener('dragstart', function(e) {
+      try { li.focus(); } catch (err) {}
       _wasDragged = true;
       li.classList.add('dragging');
     });
-
-    li.addEventListener('dragend', () => {
+    li.addEventListener('dragend', function() {
       li.classList.remove('dragging');
-      // small delay so click events that follow a drag are ignored
-      setTimeout(() => { _wasDragged = false; }, 0);
+      setTimeout(function() { _wasDragged = false; }, 0);
     });
-
     const removeBtn = document.createElement("button");
     removeBtn.textContent = "✕";
     removeBtn.className = "remove-lesson-btn";
-    removeBtn.onclick = (e) => {
+    removeBtn.onclick = function(e) {
       e.stopPropagation();
       removeLesson(lesson.id, li);
     };
     li.appendChild(removeBtn);
   }
-
   return li;
-} // end function createLessonListItem
+}
 
 async function removeLesson(lessonId, liElement) {
   if (!confirm("Remove this lesson?")) return;
-
-  const res = await fetch(`${API_BASE}/api/lessons/${encodeURIComponent(lessonId)}`, {
+  const res = await fetch(API_BASE + '/api/lessons/' + encodeURIComponent(lessonId), {
     method: "DELETE",
     headers: {
       "X-User-Role": role
     }
   });
-
   if (!res.ok && res.status !== 204) {
     alert("Failed to remove lesson.");
     return;
   }
-
-  // Remove from DOM
   if (liElement && liElement.parentNode) {
     liElement.parentNode.removeChild(liElement);
   }
@@ -182,16 +146,13 @@ async function removeLesson(lessonId, liElement) {
   if (contentEl && contentEl.parentNode) {
     contentEl.parentNode.removeChild(contentEl);
   }
-} // end method removeLesson
+}
 
-// When admin clicks "+ Add Lesson" — now offers Lesson or Quiz creation
 if (addLessonBtn && role === "admin") {
-  // helper: show a small modal with three buttons and return the choice
   function showCreateChoiceDialog() {
-    return new Promise(resolve => {
+    return new Promise(function(resolve) {
       const overlay = document.createElement('div');
       overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.4);display:flex;align-items:center;justify-content:center;z-index:2000;';
-
       const box = document.createElement('div');
       box.style.cssText = 'background:#fff;padding:18px;border-radius:8px;min-width:280px;box-shadow:0 8px 24px rgba(0,0,0,0.2);text-align:center;';
       const title = document.createElement('div');
@@ -200,47 +161,36 @@ if (addLessonBtn && role === "admin") {
       const msg = document.createElement('div');
       msg.textContent = 'Would you like to create a Lesson or a Quiz?';
       msg.style.marginBottom = '14px';
-
       const btnRow = document.createElement('div');
       btnRow.style.cssText = 'display:flex;gap:8px;justify-content:center;';
-
       const lessonBtn = document.createElement('button');
       lessonBtn.textContent = 'Lesson';
       lessonBtn.style.cssText = 'padding:8px 12px;border-radius:6px;border:1px solid #1976d2;background:#fff;color:#1976d2;cursor:pointer;';
-      lessonBtn.onclick = () => { document.body.removeChild(overlay); resolve('lesson'); };
-
+      lessonBtn.onclick = function() { document.body.removeChild(overlay); resolve('lesson'); };
       const quizBtn = document.createElement('button');
       quizBtn.textContent = 'Quiz';
       quizBtn.style.cssText = 'padding:8px 12px;border-radius:6px;border:none;background:#1976d2;color:#fff;cursor:pointer;';
-      quizBtn.onclick = () => { document.body.removeChild(overlay); resolve('quiz'); };
-
+      quizBtn.onclick = function() { document.body.removeChild(overlay); resolve('quiz'); };
       const cancelBtn = document.createElement('button');
       cancelBtn.textContent = 'Cancel';
       cancelBtn.style.cssText = 'padding:8px 12px;border-radius:6px;border:1px solid #ccc;background:#fff;color:#333;cursor:pointer;';
-      cancelBtn.onclick = () => { document.body.removeChild(overlay); resolve(null); };
-
+      cancelBtn.onclick = function() { document.body.removeChild(overlay); resolve(null); };
       btnRow.appendChild(lessonBtn);
       btnRow.appendChild(quizBtn);
       btnRow.appendChild(cancelBtn);
-
       box.appendChild(title);
       box.appendChild(msg);
       box.appendChild(btnRow);
       overlay.appendChild(box);
       document.body.appendChild(overlay);
-
-      // focus quiz button by default for keyboard users
       quizBtn.focus();
     });
   }
-
-  addLessonBtn.addEventListener("click", async () => {
-    // Ask admin whether to create a Lesson or a Quiz (three-button dialog)
+  addLessonBtn.addEventListener("click", async function() {
     const choice = await showCreateChoiceDialog();
-    if (!choice) return; // cancelled
+    if (!choice) return;
     const makeQuiz = choice === 'quiz';
-
-    const name = prompt(`Enter a name for the new ${makeQuiz ? 'quiz' : 'lesson'}:`);
+    var name = prompt('Enter a name for the new ' + (makeQuiz ? 'quiz' : 'lesson') + ':');
     if (!name) return;
 
     try {
@@ -683,17 +633,7 @@ function loadLessonContent(lesson) {
         const editQuizBtn = document.createElement('button');
         editQuizBtn.id = 'lesson-edit-quiz-btn';
         editQuizBtn.textContent = 'Edit Quiz';
-        editQuizBtn.style.cssText = `
-          display: inline-block;
-          margin-top: 18px;
-          margin-left: 8px;
-          padding: 8px 14px;
-          background: #1976d2;
-          color: #fff;
-          border: none;
-          border-radius: 6px;
-          cursor: pointer;
-        `;
+        editQuizBtn.style.cssText = "display: inline-block; margin-top: 18px; margin-left: 8px; padding: 8px 14px; background: #1976d2; color: #fff; border: none; border-radius: 6px; cursor: pointer;";
 
         editQuizBtn.addEventListener('click', (e) => {
           e.stopPropagation();
@@ -706,7 +646,7 @@ function loadLessonContent(lesson) {
         });
 
         // Build and attach a read-only preview of the quiz below the edit button
-        const previewId = `lesson-quiz-preview-${lesson.id}`;
+        var previewId = 'lesson-quiz-preview-' + lesson.id;
         // Remove any existing preview for this lesson
         const existingPreview = document.getElementById(previewId);
         if (existingPreview && existingPreview.parentNode) existingPreview.parentNode.removeChild(existingPreview);
@@ -729,7 +669,7 @@ function loadLessonContent(lesson) {
               qWrap.style.marginBottom = '10px';
               const qTitle = document.createElement('div');
               qTitle.style.fontWeight = '700';
-              qTitle.textContent = `${i + 1}. ${q.text || 'Untitled question'}`;
+              qTitle.textContent = (i + 1) + '. ' + (q.text || 'Untitled question');
               qWrap.appendChild(qTitle);
               const opts = document.createElement('ul');
               opts.style.margin = '6px 0 0 18px';
@@ -761,16 +701,7 @@ function loadLessonContent(lesson) {
         const editBtn = document.createElement('button');
         editBtn.id = 'lesson-edit-btn';
         editBtn.textContent = 'Edit Lesson';
-        editBtn.style.cssText = `
-          display: inline-block;
-          margin-top: 18px;
-          padding: 8px 14px;
-          background: #1976d2;
-          color: #fff;
-          border: none;
-          border-radius: 6px;
-          cursor: pointer;
-        `;
+        editBtn.style.cssText = "display: inline-block; margin-top: 18px; margin-left: 8px; padding: 8px 14px; background: #2196f3; color: #fff; border: none; border-radius: 6px; cursor: pointer;";
 
         // When clicked, show the editor (if not already open)
         editBtn.addEventListener('click', (e) => {
@@ -830,31 +761,13 @@ function addLessonEditor(lesson, container) {
 
   // Create toolbar
   const toolbar = document.createElement("div");
-  toolbar.style.cssText = `
-    display: flex;
-    flex-wrap: wrap;
-    gap: 8px;
-    margin-bottom: 15px;
-    padding: 10px;
-    background: #fff;
-    border: 1px solid #ddd;
-    border-radius: 4px;
-  `;
+  toolbar.style.cssText = 'display:flex;flex-wrap:wrap;gap:8px;margin-bottom:15px;padding:10px;background:#fff;border:1px solid #ddd;border-radius:4px;';
 
   // Helper to create toolbar buttons
   const createToolbarBtn = (label, onClick) => {
     const btn = document.createElement("button");
     btn.textContent = label;
-    btn.style.cssText = `
-      padding: 6px 12px;
-      background: #2196f3;
-      color: white;
-      border: none;
-      border-radius: 4px;
-      cursor: pointer;
-      font-size: 0.9rem;
-      font-weight: 500;
-    `;
+    btn.style.cssText = 'padding:6px 12px;background:#2196f3;color:white;border:none;border-radius:4px;cursor:pointer;font-size:0.9rem;font-weight:500;';
     btn.onmouseover = () => btn.style.background = '#1976d2';
     btn.onmouseout = () => btn.style.background = '#2196f3';
     btn.onclick = onClick;
@@ -952,7 +865,15 @@ function addLessonEditor(lesson, container) {
       if (!slides.length) { alert('Add at least one slide.'); return; }
       // Insert a custom HTML block for the slideshow
       const slideshowId = 'slideshow-' + Math.random().toString(36).slice(2,10);
-      let html = `<div class=\"gta-slideshow\" data-slideshow-id=\"${slideshowId}\" style=\"max-width:600px;margin:18px auto 18px auto;background:#f5f5f5;border-radius:8px;padding:18px 12px;box-shadow:0 2px 8px #0001;\">\n        <div class=\"gta-slide\" style=\"min-height:60px;text-align:center;font-size:1.2em;\"></div>\n        <div style=\"display:flex;justify-content:center;gap:10px;margin-top:10px;\">\n          <button class=\"gta-prev-slide\">Previous</button>\n          <span class=\"gta-slide-num\"></span>\n          <button class=\"gta-next-slide\">Next</button>\n        </div>\n        <script type=\"application/json\" class=\"gta-slideshow-data\">${JSON.stringify(slides)}</script>\n      </div>`;
+      let html = `<div class="gta-slideshow" data-slideshow-id="${slideshowId}" style="max-width:600px;margin:18px auto 18px auto;background:#f5f5f5;border-radius:8px;padding:18px 12px;box-shadow:0 2px 8px #0001;">
+        <div class="gta-slide" style="min-height:60px;text-align:center;font-size:1.2em;"></div>
+        <div style="display:flex;justify-content:center;gap:10px;margin-top:10px;">
+          <button class="gta-prev-slide">Previous</button>
+          <span class="gta-slide-num"></span>
+          <button class="gta-next-slide">Next</button>
+        </div>
+        <script type="application/json" class="gta-slideshow-data">${JSON.stringify(slides)}</script>
+      </div>`;
       // Insert at caret
       const selection = window.getSelection();
       if (selection.rangeCount > 0) {
@@ -1001,9 +922,9 @@ function addLessonEditor(lesson, container) {
       if (idx >= slides.length) idx = slides.length-1;
       const s = slides[idx];
       if (s.type === 'text') {
-        slideDiv.innerHTML = `<div style=\"padding:18px 0;\">${s.content.replace(/</g,'&lt;').replace(/\n/g,'<br>')}</div>`;
+        slideDiv.innerHTML = `<div style="padding:18px 0;">${s.content.replace(/</g,'&lt;').replace(/\n/g,'<br>')}</div>`;
       } else if (s.type === 'image') {
-        slideDiv.innerHTML = `<img src=\"${s.content}\" style=\"max-width:100%;max-height:320px;border-radius:6px;box-shadow:0 2px 8px #0002;\" alt=\"Slide image\">`;
+        slideDiv.innerHTML = `<img src="${s.content}" style="max-width:100%;max-height:320px;border-radius:6px;box-shadow:0 2px 8px #0002;\" alt="Slide image">`;
       }
       numSpan.textContent = `Slide ${idx+1} of ${slides.length}`;
       prevBtn.disabled = idx === 0;
@@ -1016,35 +937,7 @@ function addLessonEditor(lesson, container) {
 
   // Render slideshows on initial open
   setTimeout(() => renderAllSlideshows(), 100);
-// --- Slideshow rendering for student and admin preview ---
-function renderSlideshow(slideshow) {
-  const dataScript = slideshow.querySelector('.gta-slideshow-data');
-  if (!dataScript) return;
-  let slides = [];
-  try { slides = JSON.parse(dataScript.textContent); } catch (e) { return; }
-  let idx = 0;
-  const slideDiv = slideshow.querySelector('.gta-slide');
-  const numSpan = slideshow.querySelector('.gta-slide-num');
-  const prevBtn = slideshow.querySelector('.gta-prev-slide');
-  const nextBtn = slideshow.querySelector('.gta-next-slide');
-  function showSlide(i) {
-    idx = i;
-    if (idx < 0) idx = 0;
-    if (idx >= slides.length) idx = slides.length-1;
-    const s = slides[idx];
-    if (s.type === 'text') {
-      slideDiv.innerHTML = `<div style=\"padding:18px 0;\">${s.content.replace(/</g,'&lt;').replace(/\n/g,'<br>')}</div>`;
-    } else if (s.type === 'image') {
-      slideDiv.innerHTML = `<img src=\"${s.content}\" style=\"max-width:100%;max-height:320px;border-radius:6px;box-shadow:0 2px 8px #0002;\" alt=\"Slide image\">`;
-    }
-    numSpan.textContent = `Slide ${idx+1} of ${slides.length}`;
-    prevBtn.disabled = idx === 0;
-    nextBtn.disabled = idx === slides.length-1;
-  }
-  prevBtn.onclick = () => showSlide(idx-1);
-  nextBtn.onclick = () => showSlide(idx+1);
-  showSlide(0);
-}
+} // end function addLessonEditor
 
   // Create contenteditable div as the editor
   const editor = document.createElement("div");
@@ -1057,118 +950,43 @@ function renderSlideshow(slideshow) {
     font-family: Arial, sans-serif;
     border: 1px solid #ccc;
     border-radius: 4px;
-    .then(html => {
-      container.innerHTML = html;
-      showLoading(false);
-      // After loading, render any slideshows for students
-      setTimeout(() => {
-        const slideshows = container.querySelectorAll('.gta-slideshow');
-        slideshows.forEach(slideshow => {
-          // Only render if not already rendered
-          if (!slideshow.classList.contains('gta-slideshow-init')) {
-            renderSlideshow(slideshow);
-            slideshow.classList.add('gta-slideshow-init');
-          }
-        });
-      }, 100);
+  `;
 
-      // Determine role at runtime (in case sessionStorage changed)
-      const currentRole = sessionStorage.getItem('role') || role;
-
-      // Detect if this lesson contains quiz data
-      const quizScript = container.querySelector('#quiz-data');
-      const isQuiz = !!quizScript || !!container.querySelector('[data-quiz]');
-
-      if (isQuiz) {
-        // If non-admin, render the quiz UI for users
-        if (currentRole !== 'admin') {
-          renderQuizFromContainer(container);
-          return;
-        }
-
-        // Admins: add an Edit Quiz button
-        const existingEditQuizBtn = document.getElementById('lesson-edit-quiz-btn');
-        if (existingEditQuizBtn && existingEditQuizBtn.parentNode) existingEditQuizBtn.parentNode.removeChild(existingEditQuizBtn);
-
-        const editQuizBtn = document.createElement('button');
-        editQuizBtn.id = 'lesson-edit-quiz-btn';
-        editQuizBtn.textContent = 'Edit Quiz';
-        editQuizBtn.style.cssText = `
-          display: inline-block;
-          margin-top: 18px;
-          margin-left: 8px;
-          padding: 8px 14px;
-          background: #1976d2;
-          color: #fff;
-          border: none;
-          border-radius: 6px;
-          cursor: pointer;
-        `;
-        editQuizBtn.onclick = () => addQuizEditor(lesson, container);
-        container.appendChild(editQuizBtn);
-      } else {
-        // If not a quiz, provide the regular lesson editor for admins only
-        if (role === 'admin') {
-          const existingEditor = document.getElementById('lesson-editor-panel');
-          if (!existingEditor) {
-            const editBtn = document.createElement('button');
-            editBtn.id = 'lesson-edit-btn';
-            editBtn.textContent = 'Edit Lesson';
-            editBtn.style.cssText = `
-              display: inline-block;
-              margin-top: 18px;
-              margin-left: 8px;
-              padding: 8px 14px;
-              background: #2196f3;
-              color: #fff;
-              border: none;
-              border-radius: 6px;
-              cursor: pointer;
-            `;
-            editBtn.onclick = () => addLessonEditor(lesson, container);
-            container.appendChild(editBtn);
-          }
-        }
-      }
-      // If quiz, render quiz preview for students
-      try { renderQuizFromContainer(container); } catch (e) {}
-    })
-    `;
-    iframe.src = `https://www.youtube.com/embed/${videoId}`;
-    iframe.allow = "accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture";
-    iframe.allowFullscreen = true;
-    const selection = window.getSelection();
-    if (selection.rangeCount > 0) {
-      const range = selection.getRangeAt(0);
-      range.collapse(false);
-      range.insertNode(iframe);
-      range.setStartAfter(iframe);
-      range.collapse(true);
-      selection.removeAllRanges();
-      selection.addRange(range);
-    }
-    editor.focus();
+  iframe.src = `https://www.youtube.com/embed/${videoId}`;
+  iframe.allow = "accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture";
+  iframe.allowFullscreen = true;
+  const selection = window.getSelection();
+  if (selection.rangeCount > 0) {
+    const range = selection.getRangeAt(0);
+    range.collapse(false);
+    range.insertNode(iframe);
+    range.setStartAfter(iframe);
+    range.collapse(true);
+    selection.removeAllRanges();
+    selection.addRange(range);
   }
+  editor.focus();
+}
 
-  // Helper to extract YouTube video ID
-  function extractYouTubeId(url) {
-    const match = url.match(/(?:youtube\.com\/watch\?v=|youtu\.be\/)([a-zA-Z0-9_-]{11})/);
-    return match ? match[1] : null;
-  }
+// Helper to extract YouTube video ID
+function extractYouTubeId(url) {
+  const match = url.match(/(?:youtube\.com\/watch\?v=|youtu\.be\/)([a-zA-Z0-9_-]{11})/);
+  return match ? match[1] : null;
+}
 
-  // Button container
-  const buttonDiv = document.createElement("div");
-  buttonDiv.style.cssText = "display: flex; gap: 10px; margin-top: 10px; align-items: center;";
+// Button container
+const buttonDiv = document.createElement("div");
+buttonDiv.style.cssText = "display: flex; gap: 10px; margin-top: 10px; align-items: center;";
 
-  // Inline status message
-  const statusDiv = document.createElement('div');
-  statusDiv.id = 'lesson-editor-status';
-  statusDiv.style.cssText = 'margin-right: 12px; color: #333; font-size: 0.95rem;';
-  statusDiv.textContent = '';
+// Inline status message
+const statusDiv = document.createElement('div');
+statusDiv.id = 'lesson-editor-status';
+statusDiv.style.cssText = 'margin-right: 12px; color: #333; font-size: 0.95rem;';
+statusDiv.textContent = '';
 
-  const saveBtn = document.createElement("button");
-  saveBtn.textContent = "Save Changes";
-  saveBtn.style.cssText = `
+const saveBtn = document.createElement("button");
+saveBtn.textContent = "Save Changes";
+saveBtn.style.cssText = `
     padding: 10px 20px;
     background: #4CAF50;
     color: white;
@@ -1178,9 +996,9 @@ function renderSlideshow(slideshow) {
     font-weight: bold;
   `;
 
-  const cancelBtn = document.createElement("button");
-  cancelBtn.textContent = "Cancel";
-  cancelBtn.style.cssText = `
+const cancelBtn = document.createElement("button");
+cancelBtn.textContent = "Cancel";
+cancelBtn.style.cssText = `
     padding: 10px 20px;
     background: #f44336;
     color: white;
@@ -1190,317 +1008,317 @@ function renderSlideshow(slideshow) {
     font-weight: bold;
   `;
 
-  // When editor opens, disable the Edit button to avoid duplicates
-  const editBtn = document.getElementById('lesson-edit-btn');
+// When editor opens, disable the Edit button to avoid duplicates
+const editBtn = document.getElementById('lesson-edit-btn');
+if (editBtn) editBtn.disabled = true;
+
+// Cancel handler: remove editor and re-enable edit button
+cancelBtn.onclick = () => {
+  editorPanel.remove();
+  if (editBtn) {
+    editBtn.disabled = false;
+    editBtn.style.display = 'inline-block';
+  }
+};
+
+// Save handler: disable buttons, show inline status, perform save, then re-enable or reload
+saveBtn.onclick = async () => {
+  saveBtn.disabled = true;
+  cancelBtn.disabled = true;
   if (editBtn) editBtn.disabled = true;
+  statusDiv.textContent = 'Saving...';
 
-  // Cancel handler: remove editor and re-enable edit button
-  cancelBtn.onclick = () => {
-    editorPanel.remove();
-    if (editBtn) {
-      editBtn.disabled = false;
-      editBtn.style.display = 'inline-block';
-    }
-  };
+  const success = await saveLessonContent(lesson, editor.innerHTML, statusDiv);
 
-  // Save handler: disable buttons, show inline status, perform save, then re-enable or reload
-  saveBtn.onclick = async () => {
-    saveBtn.disabled = true;
-    cancelBtn.disabled = true;
-    if (editBtn) editBtn.disabled = true;
-    statusDiv.textContent = 'Saving...';
-
-    const success = await saveLessonContent(lesson, editor.innerHTML, statusDiv);
-
-    if (!success) {
-      // Re-enable if failed
-      saveBtn.disabled = false;
-      cancelBtn.disabled = false;
-      if (editBtn) editBtn.disabled = false;
-    } else {
-      // On successful save, close the editor and reload so admin sees the updated page
-      try {
-        if (editorPanel && editorPanel.parentNode) editorPanel.parentNode.removeChild(editorPanel);
-      } catch (e) { /* ignore */ }
-      // Reload only the lesson area so admin can see updated content
-      setTimeout(() => {
-        try { loadLessonContent(lesson); } catch (e) { console.error('Failed to reload lesson after save', e); }
-      }, 200);
-    }
-  };
-
-  buttonDiv.appendChild(statusDiv);
-  buttonDiv.appendChild(saveBtn);
-  buttonDiv.appendChild(cancelBtn);
-  editorPanel.appendChild(buttonDiv);
-  container.appendChild(editorPanel);
-
-  // Focus the editor so admin can start editing immediately
-  editor.focus();
-}
-
-  // Render a quiz UI for non-admin users from a loaded lesson container
-  function renderQuizFromContainer(container) {
+  if (!success) {
+    // Re-enable if failed
+    saveBtn.disabled = false;
+    cancelBtn.disabled = false;
+    if (editBtn) editBtn.disabled = false;
+  } else {
+    // On successful save, close the editor and reload so admin sees the updated page
     try {
-      const script = container.querySelector('#quiz-data');
-      const raw = script ? script.textContent.trim() : null;
-      const quiz = raw ? JSON.parse(raw) : { questions: [] };
+      if (editorPanel && editorPanel.parentNode) editorPanel.parentNode.removeChild(editorPanel);
+    } catch (e) { /* ignore */ }
+    // Reload only the lesson area so admin can see updated content
+    setTimeout(() => {
+      try { loadLessonContent(lesson); } catch (e) { console.error('Failed to reload lesson after save', e); }
+    }, 200);
+  }
+};
 
-      // Build quiz UI
-      const quizRoot = document.createElement('div');
-      quizRoot.className = 'user-quiz-root';
-      quizRoot.style.cssText = 'padding:20px; background:#fff; border-radius:8px;';
+buttonDiv.appendChild(statusDiv);
+buttonDiv.appendChild(saveBtn);
+buttonDiv.appendChild(cancelBtn);
+editorPanel.appendChild(buttonDiv);
+container.appendChild(editorPanel);
 
-      if (!quiz.questions || !quiz.questions.length) {
-        quizRoot.innerHTML = '<p>No questions available for this quiz.</p>';
-        container.innerHTML = '';
-        container.appendChild(quizRoot);
-        return;
-      }
+// Focus the editor so admin can start editing immediately
+editor.focus();
+// end function renderQuizFromContainer
 
-      let current = 0;
-      const answers = new Array(quiz.questions.length).fill(null);
+// Render a quiz UI for non-admin users from a loaded lesson container
+function renderQuizFromContainer(container) {
+  try {
+    const script = container.querySelector('#quiz-data');
+    const raw = script ? script.textContent.trim() : null;
+    const quiz = raw ? JSON.parse(raw) : { questions: [] };
 
-      function showQuestion(i) {
-        const q = quiz.questions[i];
-        quizRoot.innerHTML = '';
-        const qnum = document.createElement('div');
-        qnum.textContent = `Question ${i + 1} of ${quiz.questions.length}`;
-        qnum.style.fontWeight = '700';
-        qnum.style.marginBottom = '8px';
-        quizRoot.appendChild(qnum);
+    // Build quiz UI
+    const quizRoot = document.createElement('div');
+    quizRoot.className = 'user-quiz-root';
+    quizRoot.style.cssText = 'padding:20px; background:#fff; border-radius:8px;';
 
-        const qtext = document.createElement('div');
-        qtext.textContent = q.text;
-        qtext.style.marginBottom = '12px';
-        quizRoot.appendChild(qtext);
-
-        const opts = document.createElement('div');
-        opts.style.display = 'flex';
-        opts.style.flexDirection = 'column';
-        opts.style.gap = '8px';
-
-        q.options.forEach((opt, idx) => {
-          const label = document.createElement('label');
-          label.style.cursor = 'pointer';
-          const radio = document.createElement('input');
-          radio.type = 'radio';
-          radio.name = 'quiz-option';
-          radio.checked = answers[i] === idx;
-          radio.onchange = () => answers[i] = idx;
-          label.appendChild(radio);
-          const span = document.createElement('span');
-          span.textContent = ' ' + opt;
-          label.appendChild(span);
-          opts.appendChild(label);
-        });
-
-        quizRoot.appendChild(opts);
-
-        const nav = document.createElement('div');
-        nav.style.display = 'flex';
-        nav.style.justifyContent = 'space-between';
-        nav.style.marginTop = '16px';
-
-        const prev = document.createElement('button');
-        prev.textContent = '← Previous';
-        prev.disabled = i === 0;
-        prev.onclick = () => { current = Math.max(0, current - 1); showQuestion(current); };
-
-        const next = document.createElement('button');
-        next.textContent = i === quiz.questions.length - 1 ? 'Submit' : 'Next →';
-        next.onclick = () => {
-          // require answer
-          if (answers[i] === null) { alert('Please select an answer before continuing.'); return; }
-          if (i < quiz.questions.length - 1) { current++; showQuestion(current); } else { finishQuiz(); }
-        };
-
-        nav.appendChild(prev);
-        nav.appendChild(next);
-        quizRoot.appendChild(nav);
-      }
-
-      function finishQuiz() {
-        let correct = 0;
-        quiz.questions.forEach((q, idx) => { if (answers[idx] === q.correct) correct++; });
-        const pct = Math.round((correct / quiz.questions.length) * 100);
-        quizRoot.innerHTML = `<h3>Quiz Complete</h3><p>Your score: ${pct}% (${correct}/${quiz.questions.length})</p>`;
-        const msg = document.createElement('div');
-        msg.style.marginTop = '12px';
-        if (pct >= 75) {
-          msg.innerHTML = '<strong style="color:green">You passed the quiz!</strong>';
-        } else {
-          msg.innerHTML = '<strong style="color:red">You did not pass. Try again.</strong>';
-        }
-        quizRoot.appendChild(msg);
-
-        const retry = document.createElement('button');
-        retry.textContent = 'Retake Quiz';
-        retry.style.marginTop = '12px';
-        retry.onclick = () => { for (let i=0;i<answers.length;i++) answers[i]=null; current=0; showQuestion(0); };
-        quizRoot.appendChild(retry);
-      }
-
+    if (!quiz.questions || !quiz.questions.length) {
+      quizRoot.innerHTML = '<p>No questions available for this quiz.</p>';
       container.innerHTML = '';
       container.appendChild(quizRoot);
-      showQuestion(0);
-    } catch (err) {
-      console.error('Failed to render quiz', err);
-    }
-  }
-
-  // Admin quiz editor: allows creating/editing multiple-choice questions and saving them into the lesson file
-  function addQuizEditor(lesson, container) {
-    // Parse existing quiz data if present
-    const existingScript = container.querySelector('#quiz-data');
-    let quiz = { questions: [] };
-    if (existingScript) {
-      try { quiz = JSON.parse(existingScript.textContent || '{}'); } catch (e) { quiz = { questions: [] }; }
+      return;
     }
 
-    // Create editor panel similar to lesson editor
-    const editorPanel = document.createElement('div');
-    editorPanel.id = 'lesson-editor-panel';
-    editorPanel.style.cssText = `
-      margin-top: 30px;
-      padding: 20px;
-      border: 2px solid #8e24aa;
-      border-radius: 8px;
-      background: #fff;
-    `;
+    let current = 0;
+    const answers = new Array(quiz.questions.length).fill(null);
 
-    const title = document.createElement('h3');
-    title.textContent = 'Quiz Editor';
-    editorPanel.appendChild(title);
+    function showQuestion(i) {
+      const q = quiz.questions[i];
+      quizRoot.innerHTML = '';
+      const qnum = document.createElement('div');
+      qnum.textContent = `Question ${i + 1} of ${quiz.questions.length}`;
+      qnum.style.fontWeight = '700';
+      qnum.style.marginBottom = '8px';
+      quizRoot.appendChild(qnum);
 
-    // Title input for quiz (allows changing the lesson/quiz title)
-    const titleLabel = document.createElement('div');
-    titleLabel.textContent = 'Title:';
-    titleLabel.style.cssText = 'font-weight:700;margin-top:6px;margin-bottom:6px;';
-    const titleInput = document.createElement('input');
-    titleInput.id = 'lesson-editor-title';
-    titleInput.type = 'text';
-    titleInput.value = lesson.title || '';
-    titleInput.style.cssText = 'width:100%;padding:8px;border:1px solid #ccc;border-radius:4px;margin-bottom:10px;box-sizing:border-box;';
-    editorPanel.appendChild(titleLabel);
-    editorPanel.appendChild(titleInput);
+      const qtext = document.createElement('div');
+      qtext.textContent = q.text;
+      qtext.style.marginBottom = '12px';
+      quizRoot.appendChild(qtext);
 
-    const list = document.createElement('div');
-    list.id = 'quiz-question-list';
-    list.style.display = 'flex';
-    list.style.flexDirection = 'column';
-    list.style.gap = '12px';
+      const opts = document.createElement('div');
+      opts.style.display = 'flex';
+      opts.style.flexDirection = 'column';
+      opts.style.gap = '8px';
 
-    function renderQuestionEditor(q, idx) {
-      const wrap = document.createElement('div');
-      wrap.style.border = '1px solid #ddd';
-      wrap.style.padding = '10px';
-      wrap.style.borderRadius = '6px';
-
-      const qLabel = document.createElement('input');
-      qLabel.type = 'text';
-      qLabel.value = q.text || '';
-      qLabel.placeholder = 'Question text';
-      qLabel.style.width = '100%';
-      wrap.appendChild(qLabel);
-
-      const optsWrap = document.createElement('div');
-      optsWrap.style.display = 'flex';
-      optsWrap.style.flexDirection = 'column';
-      optsWrap.style.marginTop = '8px';
-      q.options = q.options || [];
-
-      q.options.forEach((opt, i) => {
-        const row = document.createElement('div');
-        row.style.display = 'flex';
-        row.style.gap = '8px';
-        row.style.alignItems = 'center';
-
+      q.options.forEach((opt, idx) => {
+        const label = document.createElement('label');
+        label.style.cursor = 'pointer';
         const radio = document.createElement('input');
         radio.type = 'radio';
-        radio.name = `correct-${idx}`;
-        radio.checked = q.correct === i;
-        radio.onchange = () => q.correct = i;
-
-        const optInput = document.createElement('input');
-        optInput.type = 'text';
-        optInput.value = opt;
-        optInput.style.flex = '1';
-        optInput.oninput = () => q.options[i] = optInput.value;
-
-        const removeOpt = document.createElement('button');
-        removeOpt.textContent = 'Remove';
-        removeOpt.onclick = () => { q.options.splice(i,1); refreshList(); };
-
-        row.appendChild(radio);
-        row.appendChild(optInput);
-        row.appendChild(removeOpt);
-        optsWrap.appendChild(row);
+        radio.name = 'quiz-option';
+        radio.checked = answers[i] === idx;
+        radio.onchange = () => answers[i] = idx;
+        label.appendChild(radio);
+        const span = document.createElement('span');
+        span.textContent = ' ' + opt;
+        label.appendChild(span);
+        opts.appendChild(label);
       });
 
-      const addOpt = document.createElement('button');
-      addOpt.textContent = 'Add Option';
-      addOpt.onclick = () => { q.options.push('New option'); refreshList(); };
-      addOpt.style.marginTop = '8px';
-      wrap.appendChild(optsWrap);
-      wrap.appendChild(addOpt);
+      quizRoot.appendChild(opts);
 
-      const removeQ = document.createElement('button');
-      removeQ.textContent = 'Remove Question';
-      removeQ.style.marginLeft = '8px';
-      removeQ.onclick = () => { quiz.questions.splice(idx,1); refreshList(); };
-      wrap.appendChild(removeQ);
+      const nav = document.createElement('div');
+      nav.style.display = 'flex';
+      nav.style.justifyContent = 'space-between';
+      nav.style.marginTop = '16px';
 
-      return {wrap, qLabel};
+      const prev = document.createElement('button');
+      prev.textContent = '← Previous';
+      prev.disabled = i === 0;
+      prev.onclick = () => { current = Math.max(0, current - 1); showQuestion(current); };
+
+      const next = document.createElement('button');
+      next.textContent = i === quiz.questions.length - 1 ? 'Submit' : 'Next →';
+      next.onclick = () => {
+        // require answer
+        if (answers[i] === null) { alert('Please select an answer before continuing.'); return; }
+        if (i < quiz.questions.length - 1) { current++; showQuestion(current); } else { finishQuiz(); }
+      };
+
+      nav.appendChild(prev);
+      nav.appendChild(next);
+      quizRoot.appendChild(nav);
     }
 
-    function refreshList() {
-      list.innerHTML = '';
-      quiz.questions.forEach((q, idx) => {
-        const {wrap, qLabel} = renderQuestionEditor(q, idx);
-        // update q.text from input on blur
-        qLabel.onblur = () => q.text = qLabel.value;
-        list.appendChild(wrap);
-      });
-    }
-
-    refreshList();
-    editorPanel.appendChild(list);
-
-    // If the edit button exists, disable/hide it while editor is open
-    const editQuizBtn = document.getElementById('lesson-edit-quiz-btn');
-    const previewEl = document.getElementById(`lesson-quiz-preview-${lesson.id}`);
-    if (editQuizBtn) {
-      editQuizBtn.disabled = true;
-      editQuizBtn.style.display = 'none';
-    }
-    if (previewEl) {
-      previewEl.style.display = 'none';
-    }
-
-    const addQ = document.createElement('button');
-    addQ.textContent = 'Add Question';
-    addQ.onclick = () => { quiz.questions.push({ text: 'New question', options: ['Option 1','Option 2'], correct: 0 }); refreshList(); };
-    addQ.style.marginTop = '10px';
-    editorPanel.appendChild(addQ);
-
-    const statusDiv = document.createElement('div');
-    statusDiv.style.marginTop = '12px';
-    editorPanel.appendChild(statusDiv);
-
-    const saveBtn = document.createElement('button');
-    saveBtn.textContent = 'Save Quiz';
-    saveBtn.style.marginTop = '12px';
-    saveBtn.onclick = async () => {
-      // Basic validation
-      for (const q of quiz.questions) {
-        if (!q.text || !q.options || q.options.length < 2) { alert('Each question needs text and at least two options.'); return; }
-        if (typeof q.correct !== 'number' || q.correct < 0 || q.correct >= q.options.length) { alert('Please mark a correct option for every question.'); return; }
+    function finishQuiz() {
+      let correct = 0;
+      quiz.questions.forEach((q, idx) => { if (answers[idx] === q.correct) correct++; });
+      const pct = Math.round((correct / quiz.questions.length) * 100);
+      quizRoot.innerHTML = `<h3>Quiz Complete</h3><p>Your score: ${pct}% (${correct}/${quiz.questions.length})</p>`;
+      const msg = document.createElement('div');
+      msg.style.marginTop = '12px';
+      if (pct >= 75) {
+        msg.innerHTML = '<strong style="color:green">You passed the quiz!</strong>';
+      } else {
+        msg.innerHTML = '<strong style="color:red">You did not pass. Try again.</strong>';
       }
+      quizRoot.appendChild(msg);
 
-      const ti = document.getElementById('lesson-editor-title');
-      const titleVal = (ti && ti.value && ti.value.trim()) ? ti.value.trim() : (lesson.title || 'Quiz');
-      const html = `<!DOCTYPE html>
+      const retry = document.createElement('button');
+      retry.textContent = 'Retake Quiz';
+      retry.style.marginTop = '12px';
+      retry.onclick = () => { for (let i=0;i<answers.length;i++) answers[i]=null; current=0; showQuestion(0); };
+      quizRoot.appendChild(retry);
+    }
+
+    container.innerHTML = '';
+    container.appendChild(quizRoot);
+    showQuestion(0);
+  } catch (err) {
+    console.error('Failed to render quiz', err);
+  }
+}
+
+// Admin quiz editor: allows creating/editing multiple-choice questions and saving them into the lesson file
+function addQuizEditor(lesson, container) {
+  // Parse existing quiz data if present
+  const existingScript = container.querySelector('#quiz-data');
+  let quiz = { questions: [] };
+  if (existingScript) {
+    try { quiz = JSON.parse(existingScript.textContent || '{}'); } catch (e) { quiz = { questions: [] }; }
+  }
+
+  // Create editor panel similar to lesson editor
+  const editorPanel = document.createElement('div');
+  editorPanel.id = 'lesson-editor-panel';
+  editorPanel.style.cssText = `
+    margin-top: 30px;
+    padding: 20px;
+    border: 2px solid #8e24aa;
+    border-radius: 8px;
+    background: #fff;
+  `;
+
+  const title = document.createElement('h3');
+  title.textContent = 'Quiz Editor';
+  editorPanel.appendChild(title);
+
+  // Title input for quiz (allows changing the lesson/quiz title)
+  const titleLabel = document.createElement('div');
+  titleLabel.textContent = 'Title:';
+  titleLabel.style.cssText = 'font-weight:700;margin-top:6px;margin-bottom:6px;';
+  const titleInput = document.createElement('input');
+  titleInput.id = 'lesson-editor-title';
+  titleInput.type = 'text';
+  titleInput.value = lesson.title || '';
+  titleInput.style.cssText = 'width:100%;padding:8px;border:1px solid #ccc;border-radius:4px;margin-bottom:10px;box-sizing:border-box;';
+  editorPanel.appendChild(titleLabel);
+  editorPanel.appendChild(titleInput);
+
+  const list = document.createElement('div');
+  list.id = 'quiz-question-list';
+  list.style.display = 'flex';
+  list.style.flexDirection = 'column';
+  list.style.gap = '12px';
+
+  function renderQuestionEditor(q, idx) {
+    const wrap = document.createElement('div');
+    wrap.style.border = '1px solid #ddd';
+    wrap.style.padding = '10px';
+    wrap.style.borderRadius = '6px';
+
+    const qLabel = document.createElement('input');
+    qLabel.type = 'text';
+    qLabel.value = q.text || '';
+    qLabel.placeholder = 'Question text';
+    qLabel.style.width = '100%';
+    wrap.appendChild(qLabel);
+
+    const optsWrap = document.createElement('div');
+    optsWrap.style.display = 'flex';
+    optsWrap.style.flexDirection = 'column';
+    optsWrap.style.marginTop = '8px';
+    q.options = q.options || [];
+
+    q.options.forEach((opt, i) => {
+      const row = document.createElement('div');
+      row.style.display = 'flex';
+      row.style.gap = '8px';
+      row.style.alignItems = 'center';
+
+      const radio = document.createElement('input');
+      radio.type = 'radio';
+      radio.name = `correct-${idx}`;
+      radio.checked = q.correct === i;
+      radio.onchange = () => q.correct = i;
+
+      const optInput = document.createElement('input');
+      optInput.type = 'text';
+      optInput.value = opt;
+      optInput.style.flex = '1';
+      optInput.oninput = () => q.options[i] = optInput.value;
+
+      const removeOpt = document.createElement('button');
+      removeOpt.textContent = 'Remove';
+      removeOpt.onclick = () => { q.options.splice(i,1); refreshList(); };
+
+      row.appendChild(radio);
+      row.appendChild(optInput);
+      row.appendChild(removeOpt);
+      optsWrap.appendChild(row);
+    });
+
+    const addOpt = document.createElement('button');
+    addOpt.textContent = 'Add Option';
+    addOpt.onclick = () => { q.options.push('New option'); refreshList(); };
+    addOpt.style.marginTop = '8px';
+    wrap.appendChild(optsWrap);
+    wrap.appendChild(addOpt);
+
+    const removeQ = document.createElement('button');
+    removeQ.textContent = 'Remove Question';
+    removeQ.style.marginLeft = '8px';
+    removeQ.onclick = () => { quiz.questions.splice(idx,1); refreshList(); };
+    wrap.appendChild(removeQ);
+
+    return {wrap, qLabel};
+  }
+
+  function refreshList() {
+    list.innerHTML = '';
+    quiz.questions.forEach((q, idx) => {
+      const {wrap, qLabel} = renderQuestionEditor(q, idx);
+      // update q.text from input on blur
+      qLabel.onblur = () => q.text = qLabel.value;
+      list.appendChild(wrap);
+    });
+  }
+
+  refreshList();
+  editorPanel.appendChild(list);
+
+  // If the edit button exists, disable/hide it while editor is open
+  const editQuizBtn = document.getElementById('lesson-edit-quiz-btn');
+  const previewEl = document.getElementById(`lesson-quiz-preview-${lesson.id}`);
+  if (editQuizBtn) {
+    editQuizBtn.disabled = true;
+    editQuizBtn.style.display = 'none';
+  }
+  if (previewEl) {
+    previewEl.style.display = 'none';
+  }
+
+  const addQ = document.createElement('button');
+  addQ.textContent = 'Add Question';
+  addQ.onclick = () => { quiz.questions.push({ text: 'New question', options: ['Option 1','Option 2'], correct: 0 }); refreshList(); };
+  addQ.style.marginTop = '10px';
+  editorPanel.appendChild(addQ);
+
+  const statusDiv = document.createElement('div');
+  statusDiv.style.marginTop = '12px';
+  editorPanel.appendChild(statusDiv);
+
+  const saveBtn = document.createElement('button');
+  saveBtn.textContent = 'Save Quiz';
+  saveBtn.style.marginTop = '12px';
+  saveBtn.onclick = async () => {
+    // Basic validation
+    for (const q of quiz.questions) {
+      if (!q.text || !q.options || q.options.length < 2) { alert('Each question needs text and at least two options.'); return; }
+      if (typeof q.correct !== 'number' || q.correct < 0 || q.correct >= q.options.length) { alert('Please mark a correct option for every question.'); return; }
+    }
+
+    const ti = document.getElementById('lesson-editor-title');
+    const titleVal = (ti && ti.value && ti.value.trim()) ? ti.value.trim() : (lesson.title || 'Quiz');
+    const html = `<!DOCTYPE html>
   <html lang="en">
   <head><meta charset="utf-8"><title>${titleVal}</title></head>
   <body>
@@ -1510,27 +1328,27 @@ function renderSlideshow(slideshow) {
   </body>
   </html>`;
 
-      statusDiv.textContent = 'Saving quiz...';
-      const ok = await saveLessonContent(lesson, html, statusDiv);
-        if (ok) {
-          statusDiv.textContent = 'Saved.';
-          // Re-enable/show edit button in case load fails
-          if (editQuizBtn) {
-            editQuizBtn.disabled = false;
-            editQuizBtn.style.display = 'inline-block';
-          }
-          // reload lesson content to show updated view (this will recreate preview)
-          loadLessonContent(lesson);
-          if (editorPanel && editorPanel.parentNode) editorPanel.remove();
-        } else {
-          statusDiv.textContent = 'Save failed.';
-          // Re-enable the edit button so admin can try again
-          if (editQuizBtn) {
-            editQuizBtn.disabled = false;
-            editQuizBtn.style.display = 'inline-block';
-          }
-          if (previewEl) previewEl.style.display = 'block';
+    statusDiv.textContent = 'Saving quiz...';
+    const ok = await saveLessonContent(lesson, html, statusDiv);
+      if (ok) {
+        statusDiv.textContent = 'Saved.';
+        // Re-enable/show edit button in case load fails
+        if (editQuizBtn) {
+          editQuizBtn.disabled = false;
+          editQuizBtn.style.display = 'inline-block';
         }
+        // reload lesson content to show updated view (this will recreate preview)
+        loadLessonContent(lesson);
+        if (editorPanel && editorPanel.parentNode) editorPanel.remove();
+      } else {
+        statusDiv.textContent = 'Save failed.';
+        // Re-enable the edit button so admin can try again
+        if (editQuizBtn) {
+          editQuizBtn.disabled = false;
+          editQuizBtn.style.display = 'inline-block';
+        }
+        if (previewEl) previewEl.style.display = 'block';
+      }
     };
 
     const cancelBtn = document.createElement('button');
