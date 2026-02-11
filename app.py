@@ -1,13 +1,18 @@
+
 import os
 import re
 from flask import Flask, request, jsonify, abort
 from uuid import uuid4
 from flask_cors import CORS
-from supabase import create_client, Client
 
-SUPABASE_URL = os.environ["SUPABASE_URL"]
-SUPABASE_KEY = os.environ["SUPABASE_KEY"]
-supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
+# --- Firestore integration ---
+# Install: pip install google-cloud-firestore
+# 1. Download your service account key from Firebase Console > Project Settings > Service Accounts > Generate new private key
+# 2. Save it as serviceAccountKey.json in your project root (or set GOOGLE_APPLICATION_CREDENTIALS env var)
+# 3. Replace 'your-collection-name' with your Firestore collection name (e.g. 'lessons')
+from google.cloud import firestore
+firestore_client = firestore.Client()
+LESSONS_COLLECTION = 'lessons'  # Change if you use a different collection name
 
 app = Flask(__name__)
 
@@ -23,15 +28,22 @@ def is_admin(request):
 
 @app.get("/api/lessons")
 def list_lessons():
-    resp = supabase.table("lessons").select("id,title").execute()
-    return jsonify(resp.data), 200
+    # Firestore: get all lessons (id, title)
+    lessons = []
+    docs = firestore_client.collection(LESSONS_COLLECTION).stream()
+    for doc in docs:
+        data = doc.to_dict()
+        lessons.append({"id": doc.id, "title": data.get("title", "")})
+    return jsonify(lessons), 200
 
 @app.get("/lessons/<lesson_id>")
 def serve_lesson(lesson_id):
-    resp = supabase.table("lessons").select("html").eq("id", lesson_id).single().execute()
-    if not resp.data:
+    # Firestore: get lesson HTML by id
+    doc = firestore_client.collection(LESSONS_COLLECTION).document(lesson_id).get()
+    if not doc.exists:
         return "Lesson not found", 404
-    return resp.data["html"], 200, {"Content-Type": "text/html; charset=utf-8"}
+    data = doc.to_dict()
+    return data.get("html", "<p>No content</p>"), 200, {"Content-Type": "text/html; charset=utf-8"}
 
 @app.post("/api/lessons")
 def create_lesson():
@@ -49,9 +61,9 @@ def create_lesson():
 
     title = raw_name.strip().title()
     initial_html = f"""<!DOCTYPE html>
-<html lang="en">
+<html lang=\"en\">
 <head>
-  <meta charset="UTF-8">
+  <meta charset=\"UTF-8\">
   <title>{title}</title>
 </head>
 <body>
@@ -61,21 +73,22 @@ def create_lesson():
 </html>
 """
 
-    resp = supabase.table("lessons").insert({
-        "id": safe,
+    # Firestore: create lesson document
+    doc_ref = firestore_client.collection(LESSONS_COLLECTION).document(safe)
+    doc_ref.set({
         "title": title,
         "html": initial_html
-    }).execute()
-
-    return jsonify(resp.data[0]), 201
+    })
+    return jsonify({"id": safe, "title": title}), 201
 
 @app.delete("/api/lessons/<lesson_id>")
 def delete_lesson(lesson_id):
     if not is_admin(request):
         abort(403)
-    resp = supabase.table("lessons").delete().eq("id", lesson_id).execute()
-    if not resp.data:
+    doc_ref = firestore_client.collection(LESSONS_COLLECTION).document(lesson_id)
+    if not doc_ref.get().exists:
         return jsonify({"error": "not found"}), 404
+    doc_ref.delete()
     return "", 204
 
 @app.route("/lessons/<lesson_id>", methods=["PUT", "PATCH"])
@@ -90,14 +103,16 @@ def update_lesson_file(lesson_id):
     if content is None and title is None:
         return jsonify({"error": "content or title required"}), 400
 
+    doc_ref = firestore_client.collection(LESSONS_COLLECTION).document(lesson_id)
+    doc = doc_ref.get()
+    if not doc.exists:
+        return jsonify({"error": "lesson not found"}), 404
     updates = {}
-
     # If title provided, normalize
     if isinstance(title, str):
         new_title = title.strip()
         if new_title:
             updates["title"] = new_title
-
     # If content provided, optionally inject the provided title into <title> and first <h1>
     if isinstance(content, str):
         updated_content = content
@@ -108,19 +123,13 @@ def update_lesson_file(lesson_id):
             else:
                 # try to inject into <head>
                 updated_content = re.sub(r"(</head>)", f"  <title>{updates['title']}</title>\n\1", updated_content, count=1, flags=re.IGNORECASE | re.DOTALL)
-
             # replace first <h1>...</h1> if present
             if re.search(r"<h1[^>]*>.*?</h1>", updated_content, flags=re.IGNORECASE | re.DOTALL):
                 updated_content = re.sub(r"(<h1[^>]*>).*?(</h1>)", r"\1" + updates["title"] + r"\2", updated_content, count=1, flags=re.IGNORECASE | re.DOTALL)
-
         updates["html"] = updated_content
-
     if not updates:
         return jsonify({"error": "nothing to update"}), 400
-
-    resp = supabase.table("lessons").update(updates).eq("id", lesson_id).execute()
-    if not resp.data:
-        return jsonify({"error": "lesson not found"}), 404
+    doc_ref.update(updates)
     return jsonify({"status": "saved"}), 200
 
 
