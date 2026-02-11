@@ -885,7 +885,166 @@ function addLessonEditor(lesson, container) {
     if (url) insertVideo(url);
   }));
 
+  // Slideshow button
+  toolbar.appendChild(createToolbarBtn("📽 Insert Slideshow", () => {
+    showSlideshowDialog();
+  }));
+
   editorPanel.appendChild(toolbar);
+
+  // Slideshow dialog and insertion logic
+  function showSlideshowDialog() {
+    // Modal dialog for slideshow creation
+    const modal = document.createElement('div');
+    modal.style.cssText = 'position:fixed;top:0;left:0;width:100vw;height:100vh;background:rgba(0,0,0,0.25);z-index:9999;display:flex;align-items:center;justify-content:center;';
+    const box = document.createElement('div');
+    box.style.cssText = 'background:#fff;padding:24px 28px;border-radius:10px;box-shadow:0 8px 32px rgba(0,0,0,0.18);min-width:340px;max-width:95vw;';
+    box.innerHTML = '<h3 style="margin-top:0">Create Slideshow</h3>';
+    const slides = [];
+    const slidesList = document.createElement('div');
+    slidesList.style.cssText = 'margin-bottom:12px;';
+    function renderSlides() {
+      slidesList.innerHTML = '';
+      slides.forEach((slide, i) => {
+        const row = document.createElement('div');
+        row.style.cssText = 'display:flex;align-items:center;gap:8px;margin-bottom:6px;';
+        const typeSel = document.createElement('select');
+        typeSel.innerHTML = '<option value="text">Text</option><option value="image">Image</option>';
+        typeSel.value = slide.type;
+        typeSel.onchange = () => { slide.type = typeSel.value; renderSlides(); };
+        row.appendChild(typeSel);
+        if (slide.type === 'text') {
+          const input = document.createElement('input');
+          input.type = 'text';
+          input.placeholder = 'Slide text';
+          input.value = slide.content;
+          input.style.cssText = 'flex:1;padding:4px 8px;';
+          input.oninput = () => slide.content = input.value;
+          row.appendChild(input);
+        } else {
+          const input = document.createElement('input');
+          input.type = 'text';
+          input.placeholder = 'Image URL';
+          input.value = slide.content;
+          input.style.cssText = 'flex:1;padding:4px 8px;';
+          input.oninput = () => slide.content = input.value;
+          row.appendChild(input);
+        }
+        const delBtn = document.createElement('button');
+        delBtn.textContent = 'Remove';
+        delBtn.onclick = () => { slides.splice(i,1); renderSlides(); };
+        row.appendChild(delBtn);
+        slidesList.appendChild(row);
+      });
+    }
+    renderSlides();
+    box.appendChild(slidesList);
+    const addBtn = document.createElement('button');
+    addBtn.textContent = 'Add Slide';
+    addBtn.onclick = () => { slides.push({type:'text',content:''}); renderSlides(); };
+    box.appendChild(addBtn);
+    box.appendChild(document.createElement('br'));
+    box.appendChild(document.createElement('br'));
+    const insertBtn = document.createElement('button');
+    insertBtn.textContent = 'Insert Slideshow';
+    insertBtn.style.cssText = 'margin-right:10px;background:#2196f3;color:#fff;padding:8px 16px;border:none;border-radius:4px;cursor:pointer;';
+    insertBtn.onclick = () => {
+      if (!slides.length) { alert('Add at least one slide.'); return; }
+      // Insert a custom HTML block for the slideshow
+      const slideshowId = 'slideshow-' + Math.random().toString(36).slice(2,10);
+      let html = `<div class=\"gta-slideshow\" data-slideshow-id=\"${slideshowId}\" style=\"max-width:600px;margin:18px auto 18px auto;background:#f5f5f5;border-radius:8px;padding:18px 12px;box-shadow:0 2px 8px #0001;\">\n        <div class=\"gta-slide\" style=\"min-height:60px;text-align:center;font-size:1.2em;\"></div>\n        <div style=\"display:flex;justify-content:center;gap:10px;margin-top:10px;\">\n          <button class=\"gta-prev-slide\">Previous</button>\n          <span class=\"gta-slide-num\"></span>\n          <button class=\"gta-next-slide\">Next</button>\n        </div>\n        <script type=\"application/json\" class=\"gta-slideshow-data\">${JSON.stringify(slides)}</script>\n      </div>`;
+      // Insert at caret
+      const selection = window.getSelection();
+      if (selection.rangeCount > 0) {
+        const range = selection.getRangeAt(0);
+        const temp = document.createElement('div');
+        temp.innerHTML = html;
+        const frag = document.createDocumentFragment();
+        while (temp.firstChild) frag.appendChild(temp.firstChild);
+        range.insertNode(frag);
+      }
+      document.body.removeChild(modal);
+      editor.focus();
+      setTimeout(() => renderAllSlideshows(), 100);
+    };
+    box.appendChild(insertBtn);
+    const cancelBtn = document.createElement('button');
+    cancelBtn.textContent = 'Cancel';
+    cancelBtn.onclick = () => document.body.removeChild(modal);
+    box.appendChild(cancelBtn);
+    modal.appendChild(box);
+    document.body.appendChild(modal);
+  }
+
+  // Render all slideshows in the editor preview (for admin preview)
+  function renderAllSlideshows() {
+    const slideshows = editor.querySelectorAll('.gta-slideshow');
+    slideshows.forEach(slideshow => {
+      renderSlideshow(slideshow);
+    });
+  }
+
+  // Render a single slideshow (shared with student view)
+  function renderSlideshow(slideshow) {
+    const dataScript = slideshow.querySelector('.gta-slideshow-data');
+    if (!dataScript) return;
+    let slides = [];
+    try { slides = JSON.parse(dataScript.textContent); } catch (e) { return; }
+    let idx = 0;
+    const slideDiv = slideshow.querySelector('.gta-slide');
+    const numSpan = slideshow.querySelector('.gta-slide-num');
+    const prevBtn = slideshow.querySelector('.gta-prev-slide');
+    const nextBtn = slideshow.querySelector('.gta-next-slide');
+    function showSlide(i) {
+      idx = i;
+      if (idx < 0) idx = 0;
+      if (idx >= slides.length) idx = slides.length-1;
+      const s = slides[idx];
+      if (s.type === 'text') {
+        slideDiv.innerHTML = `<div style=\"padding:18px 0;\">${s.content.replace(/</g,'&lt;').replace(/\n/g,'<br>')}</div>`;
+      } else if (s.type === 'image') {
+        slideDiv.innerHTML = `<img src=\"${s.content}\" style=\"max-width:100%;max-height:320px;border-radius:6px;box-shadow:0 2px 8px #0002;\" alt=\"Slide image\">`;
+      }
+      numSpan.textContent = `Slide ${idx+1} of ${slides.length}`;
+      prevBtn.disabled = idx === 0;
+      nextBtn.disabled = idx === slides.length-1;
+    }
+    prevBtn.onclick = () => showSlide(idx-1);
+    nextBtn.onclick = () => showSlide(idx+1);
+    showSlide(0);
+  }
+
+  // Render slideshows on initial open
+  setTimeout(() => renderAllSlideshows(), 100);
+// --- Slideshow rendering for student and admin preview ---
+function renderSlideshow(slideshow) {
+  const dataScript = slideshow.querySelector('.gta-slideshow-data');
+  if (!dataScript) return;
+  let slides = [];
+  try { slides = JSON.parse(dataScript.textContent); } catch (e) { return; }
+  let idx = 0;
+  const slideDiv = slideshow.querySelector('.gta-slide');
+  const numSpan = slideshow.querySelector('.gta-slide-num');
+  const prevBtn = slideshow.querySelector('.gta-prev-slide');
+  const nextBtn = slideshow.querySelector('.gta-next-slide');
+  function showSlide(i) {
+    idx = i;
+    if (idx < 0) idx = 0;
+    if (idx >= slides.length) idx = slides.length-1;
+    const s = slides[idx];
+    if (s.type === 'text') {
+      slideDiv.innerHTML = `<div style=\"padding:18px 0;\">${s.content.replace(/</g,'&lt;').replace(/\n/g,'<br>')}</div>`;
+    } else if (s.type === 'image') {
+      slideDiv.innerHTML = `<img src=\"${s.content}\" style=\"max-width:100%;max-height:320px;border-radius:6px;box-shadow:0 2px 8px #0002;\" alt=\"Slide image\">`;
+    }
+    numSpan.textContent = `Slide ${idx+1} of ${slides.length}`;
+    prevBtn.disabled = idx === 0;
+    nextBtn.disabled = idx === slides.length-1;
+  }
+  prevBtn.onclick = () => showSlide(idx-1);
+  nextBtn.onclick = () => showSlide(idx+1);
+  showSlide(0);
+}
 
   // Create contenteditable div as the editor
   const editor = document.createElement("div");
@@ -898,71 +1057,82 @@ function addLessonEditor(lesson, container) {
     font-family: Arial, sans-serif;
     border: 1px solid #ccc;
     border-radius: 4px;
-    box-sizing: border-box;
-    margin: 10px 0;
-    background: white;
-    overflow-y: auto;
-    line-height: 1.6;
-  `;
+    .then(html => {
+      container.innerHTML = html;
+      showLoading(false);
+      // After loading, render any slideshows for students
+      setTimeout(() => {
+        const slideshows = container.querySelectorAll('.gta-slideshow');
+        slideshows.forEach(slideshow => {
+          // Only render if not already rendered
+          if (!slideshow.classList.contains('gta-slideshow-init')) {
+            renderSlideshow(slideshow);
+            slideshow.classList.add('gta-slideshow-init');
+          }
+        });
+      }, 100);
 
-  // Parse existing HTML and display in editor, but exclude the edit button itself
-  // Clone container and remove any edit buttons before putting content in editor
-  const contentClone = container.cloneNode(true);
-  const editBtns = contentClone.querySelectorAll('#lesson-edit-btn, #lesson-edit-quiz-btn');
-  editBtns.forEach(btn => btn.remove());
-  editor.innerHTML = contentClone.innerHTML;
-  editorPanel.appendChild(editor);
+      // Determine role at runtime (in case sessionStorage changed)
+      const currentRole = sessionStorage.getItem('role') || role;
 
-  // Helper functions for inserting elements
-  function insertElement(tag, defaultText) {
-    const selection = window.getSelection();
-    if (selection.rangeCount > 0) {
-      const el = document.createElement(tag);
-      el.textContent = defaultText;
-      const range = selection.getRangeAt(0);
-      range.collapse(false);
-      range.insertNode(el);
-      range.setStartAfter(el);
-      range.collapse(true);
-      selection.removeAllRanges();
-      selection.addRange(range);
-      editor.focus();
-    }
-  }
+      // Detect if this lesson contains quiz data
+      const quizScript = container.querySelector('#quiz-data');
+      const isQuiz = !!quizScript || !!container.querySelector('[data-quiz]');
 
-  function insertImage(url) {
-    const img = document.createElement("img");
-    img.src = url;
-    img.style.cssText = "max-width: 100%; height: auto; margin: 10px 0; border-radius: 4px;";
-    img.onerror = () => alert("Failed to load image. Check the URL.");
-    const selection = window.getSelection();
-    if (selection.rangeCount > 0) {
-      const range = selection.getRangeAt(0);
-      range.collapse(false);
-      range.insertNode(img);
-      range.setStartAfter(img);
-      range.collapse(true);
-      selection.removeAllRanges();
-      selection.addRange(range);
-    }
-    editor.focus();
-  }
+      if (isQuiz) {
+        // If non-admin, render the quiz UI for users
+        if (currentRole !== 'admin') {
+          renderQuizFromContainer(container);
+          return;
+        }
 
-  function insertVideo(url) {
-    // Extract video ID from YouTube URL
-    const videoId = extractYouTubeId(url);
-    if (!videoId) {
-      alert("Invalid YouTube URL. Please use format: https://www.youtube.com/watch?v=VIDEO_ID");
-      return;
-    }
-    const iframe = document.createElement("iframe");
-    iframe.style.cssText = `
-      width: 100%;
-      max-width: 560px;
-      height: 315px;
-      border: none;
-      border-radius: 4px;
-      margin: 10px 0;
+        // Admins: add an Edit Quiz button
+        const existingEditQuizBtn = document.getElementById('lesson-edit-quiz-btn');
+        if (existingEditQuizBtn && existingEditQuizBtn.parentNode) existingEditQuizBtn.parentNode.removeChild(existingEditQuizBtn);
+
+        const editQuizBtn = document.createElement('button');
+        editQuizBtn.id = 'lesson-edit-quiz-btn';
+        editQuizBtn.textContent = 'Edit Quiz';
+        editQuizBtn.style.cssText = `
+          display: inline-block;
+          margin-top: 18px;
+          margin-left: 8px;
+          padding: 8px 14px;
+          background: #1976d2;
+          color: #fff;
+          border: none;
+          border-radius: 6px;
+          cursor: pointer;
+        `;
+        editQuizBtn.onclick = () => addQuizEditor(lesson, container);
+        container.appendChild(editQuizBtn);
+      } else {
+        // If not a quiz, provide the regular lesson editor for admins only
+        if (role === 'admin') {
+          const existingEditor = document.getElementById('lesson-editor-panel');
+          if (!existingEditor) {
+            const editBtn = document.createElement('button');
+            editBtn.id = 'lesson-edit-btn';
+            editBtn.textContent = 'Edit Lesson';
+            editBtn.style.cssText = `
+              display: inline-block;
+              margin-top: 18px;
+              margin-left: 8px;
+              padding: 8px 14px;
+              background: #2196f3;
+              color: #fff;
+              border: none;
+              border-radius: 6px;
+              cursor: pointer;
+            `;
+            editBtn.onclick = () => addLessonEditor(lesson, container);
+            container.appendChild(editBtn);
+          }
+        }
+      }
+      // If quiz, render quiz preview for students
+      try { renderQuizFromContainer(container); } catch (e) {}
+    })
     `;
     iframe.src = `https://www.youtube.com/embed/${videoId}`;
     iframe.allow = "accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture";
