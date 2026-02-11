@@ -11,7 +11,7 @@ const addLessonBtn = document.getElementById("add-lesson-btn");
 
 if (sessionStorage.getItem('loggedIn') !== 'true') {
   window.location.href = 'index.html';
-// ...existing code...
+}
 
 const adminBadge = document.getElementById('admin-badge');
 const adminSeparator = document.getElementById('admin-separator');
@@ -938,35 +938,6 @@ function addLessonEditor(lesson, container) {
   // Render slideshows on initial open
   setTimeout(() => renderAllSlideshows(), 100);
 } // end function addLessonEditor
-
-  // Create contenteditable div as the editor
-  const editor = document.createElement("div");
-  editor.id = "lesson-content-editor";
-  editor.contentEditable = "true";
-  editor.style.cssText = `
-    width: 100%;
-    min-height: 300px;
-    padding: 15px;
-    font-family: Arial, sans-serif;
-    border: 1px solid #ccc;
-    border-radius: 4px;
-  `;
-
-  iframe.src = `https://www.youtube.com/embed/${videoId}`;
-  iframe.allow = "accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture";
-  iframe.allowFullscreen = true;
-  const selection = window.getSelection();
-  if (selection.rangeCount > 0) {
-    const range = selection.getRangeAt(0);
-    range.collapse(false);
-    range.insertNode(iframe);
-    range.setStartAfter(iframe);
-    range.collapse(true);
-    selection.removeAllRanges();
-    selection.addRange(range);
-  }
-  editor.focus();
-}
 
 // Helper to extract YouTube video ID
 function extractYouTubeId(url) {
