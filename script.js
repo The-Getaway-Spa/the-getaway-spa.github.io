@@ -891,144 +891,32 @@ function addLessonEditor(lesson, container) {
   }));
 
   // Slideshow button
-  toolbar.appendChild(createToolbarBtn("📽 Insert Slideshow", () => {
-    showSlideshowDialog();
+  toolbar.appendChild(createToolbarBtn("📽 Embed Slideshow", () => {
+    const embedCode = prompt("Paste the embed code from Google Slides or Canva (must be an <iframe>):");
+    if (embedCode) {
+      const iframeMatch = embedCode.match(/<iframe[\s\S]*?<\/iframe>/i);
+      if (iframeMatch && iframeMatch[0]) {
+        let cleanEmbedCode = iframeMatch[0];
+        // Replace position: absolute with position: static to prevent overlay issues
+        cleanEmbedCode = cleanEmbedCode.replace(/position:\s*absolute/gi, 'position: static');
+        // Insert at caret
+        const selection = window.getSelection();
+        if (selection.rangeCount > 0) {
+          const range = selection.getRangeAt(0);
+          const temp = document.createElement('div');
+          temp.innerHTML = cleanEmbedCode;
+          const frag = document.createDocumentFragment();
+          while (temp.firstChild) frag.appendChild(temp.firstChild);
+          range.insertNode(frag);
+          editor.focus();
+        }
+      } else {
+        alert("Could not find an <iframe> embed code. Please paste the full embed code.");
+      }
+    }
   }));
 
   editorPanel.insertBefore(toolbar, editor);
-
-  // Slideshow dialog and insertion logic
-  function showSlideshowDialog() {
-    // Modal dialog for slideshow creation
-    const modal = document.createElement('div');
-    modal.style.cssText = 'position:fixed;top:0;left:0;width:100vw;height:100vh;background:rgba(0,0,0,0.25);z-index:9999;display:flex;align-items:center;justify-content:center;';
-    const box = document.createElement('div');
-    box.style.cssText = 'background:#fff;padding:24px 28px;border-radius:10px;box-shadow:0 8px 32px rgba(0,0,0,0.18);min-width:340px;max-width:95vw;';
-    box.innerHTML = '<h3 style="margin-top:0">Create Slideshow</h3>';
-    const slides = [];
-    const slidesList = document.createElement('div');
-    slidesList.style.cssText = 'margin-bottom:12px;';
-    function renderSlides() {
-      slidesList.innerHTML = '';
-      slides.forEach((slide, i) => {
-        const row = document.createElement('div');
-        row.style.cssText = 'display:flex;align-items:center;gap:8px;margin-bottom:6px;';
-        const typeSel = document.createElement('select');
-        typeSel.innerHTML = '<option value="text">Text</option><option value="image">Image</option>';
-        typeSel.value = slide.type;
-        typeSel.onchange = () => { slide.type = typeSel.value; renderSlides(); };
-        row.appendChild(typeSel);
-        if (slide.type === 'text') {
-          const input = document.createElement('input');
-          input.type = 'text';
-          input.placeholder = 'Slide text';
-          input.value = slide.content;
-          input.style.cssText = 'flex:1;padding:4px 8px;';
-          input.oninput = () => slide.content = input.value;
-          row.appendChild(input);
-        } else {
-          const input = document.createElement('input');
-          input.type = 'text';
-          input.placeholder = 'Image URL';
-          input.value = slide.content;
-          input.style.cssText = 'flex:1;padding:4px 8px;';
-          input.oninput = () => slide.content = input.value;
-          row.appendChild(input);
-        }
-        const delBtn = document.createElement('button');
-        delBtn.textContent = 'Remove';
-        delBtn.onclick = () => { slides.splice(i,1); renderSlides(); };
-        row.appendChild(delBtn);
-        slidesList.appendChild(row);
-      });
-    }
-    renderSlides();
-    box.appendChild(slidesList);
-    const addBtn = document.createElement('button');
-    addBtn.textContent = 'Add Slide';
-    addBtn.onclick = () => { slides.push({type:'text',content:''}); renderSlides(); };
-    box.appendChild(addBtn);
-    box.appendChild(document.createElement('br'));
-    box.appendChild(document.createElement('br'));
-    const insertBtn = document.createElement('button');
-    insertBtn.textContent = 'Insert Slideshow';
-    insertBtn.style.cssText = 'margin-right:10px;background:#2196f3;color:#fff;padding:8px 16px;border:none;border-radius:4px;cursor:pointer;';
-    insertBtn.onclick = () => {
-      if (!slides.length) { alert('Add at least one slide.'); return; }
-      // Insert a custom HTML block for the slideshow
-      const slideshowId = 'slideshow-' + Math.random().toString(36).slice(2,10);
-      let html = `<div class="gta-slideshow" data-slideshow-id="${slideshowId}" style="max-width:600px;margin:18px auto 18px auto;background:#f5f5f5;border-radius:8px;padding:18px 12px;box-shadow:0 2px 8px #0001;">
-        <div class="gta-slide" style="min-height:60px;text-align:center;font-size:1.2em;"></div>
-        <div style="display:flex;justify-content:center;gap:10px;margin-top:10px;">
-          <button class="gta-prev-slide">Previous</button>
-          <span class="gta-slide-num"></span>
-          <button class="gta-next-slide">Next</button>
-        </div>
-        <script type="application/json" class="gta-slideshow-data">${JSON.stringify(slides)}</script>
-      </div>`;
-      // Insert at caret
-      const selection = window.getSelection();
-      if (selection.rangeCount > 0) {
-        const range = selection.getRangeAt(0);
-        const temp = document.createElement('div');
-        temp.innerHTML = html;
-        const frag = document.createDocumentFragment();
-        while (temp.firstChild) frag.appendChild(temp.firstChild);
-        range.insertNode(frag);
-      }
-      document.body.removeChild(modal);
-      editor.focus();
-      setTimeout(() => renderAllSlideshows(), 100);
-    };
-    box.appendChild(insertBtn);
-    const cancelBtn = document.createElement('button');
-    cancelBtn.textContent = 'Cancel';
-    cancelBtn.onclick = () => document.body.removeChild(modal);
-    box.appendChild(cancelBtn);
-    modal.appendChild(box);
-    document.body.appendChild(modal);
-  }
-
-  // Render all slideshows in the editor preview (for admin preview)
-  function renderAllSlideshows() {
-    const slideshows = editor.querySelectorAll('.gta-slideshow');
-    slideshows.forEach(slideshow => {
-      renderSlideshow(slideshow);
-    });
-  }
-
-  // Render a single slideshow (shared with student view)
-  function renderSlideshow(slideshow) {
-    const dataScript = slideshow.querySelector('.gta-slideshow-data');
-    if (!dataScript) return;
-    let slides = [];
-    try { slides = JSON.parse(dataScript.textContent); } catch (e) { return; }
-    let idx = 0;
-    const slideDiv = slideshow.querySelector('.gta-slide');
-    const numSpan = slideshow.querySelector('.gta-slide-num');
-    const prevBtn = slideshow.querySelector('.gta-prev-slide');
-    const nextBtn = slideshow.querySelector('.gta-next-slide');
-    function showSlide(i) {
-      idx = i;
-      if (idx < 0) idx = 0;
-      if (idx >= slides.length) idx = slides.length-1;
-      const s = slides[idx];
-      if (s.type === 'text') {
-        slideDiv.innerHTML = `<div style="padding:18px 0;">${s.content.replace(/</g,'&lt;').replace(/\n/g,'<br>')}</div>`;
-      } else if (s.type === 'image') {
-        slideDiv.innerHTML = `<img src="${s.content}" style="max-width:100%;max-height:320px;border-radius:6px;box-shadow:0 2px 8px #0002;\" alt="Slide image">`;
-      }
-      numSpan.textContent = `Slide ${idx+1} of ${slides.length}`;
-      prevBtn.disabled = idx === 0;
-      nextBtn.disabled = idx === slides.length-1;
-    }
-    prevBtn.onclick = () => showSlide(idx-1);
-    nextBtn.onclick = () => showSlide(idx+1);
-    showSlide(0);
-  }
-
-  // Render slideshows on initial open
-  setTimeout(() => renderAllSlideshows(), 100);
 
   // Create buttons container
   const buttonDiv = document.createElement("div");
