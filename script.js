@@ -716,7 +716,20 @@ function loadLessonContent(lesson) {
           // Hide/disable the edit button immediately while editor opens
           editBtn.disabled = true;
           editBtn.style.display = 'none';
-          addLessonEditor(lesson, container);
+          
+          // Fetch the latest content before opening the editor
+          const url = `${API_BASE}/lessons/${encodeURIComponent(lesson.id)}`;
+          fetch(url)
+            .then(res => res.text())
+            .then(html => {
+              const updatedLesson = { ...lesson, html: html };
+              addLessonEditor(updatedLesson, container);
+            })
+            .catch(err => {
+              console.error("Failed to fetch latest lesson content for editor", err);
+              // Fallback to existing content if fetch fails
+              addLessonEditor(lesson, container);
+            });
         });
 
         // Append the edit button after the lesson content
@@ -732,6 +745,9 @@ function loadLessonContent(lesson) {
 
 // Add a user-friendly WYSIWYG editor for admins to edit lesson content
 function addLessonEditor(lesson, container) {
+  // Clear the container before adding the editor
+  container.innerHTML = '';
+
   // Create editor panel
   const editorPanel = document.createElement("div");
   editorPanel.id = "lesson-editor-panel";
