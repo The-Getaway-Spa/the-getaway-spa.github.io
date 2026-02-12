@@ -67,7 +67,6 @@ def create_lesson():
   <title>{title}</title>
 </head>
 <body>
-  <h1>{title}</h1>
   <p>This is a new lesson. Edit this file to add content.</p>
 </body>
 </html>
