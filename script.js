@@ -217,6 +217,12 @@ if (addLessonBtn && role === "admin") {
       const li = createLessonListItem(savedLesson);
       lessonList.appendChild(li);
 
+      // Immediately select and load the new lesson
+      const selectedEls = document.querySelectorAll(".sidebar ul li.selected");
+      selectedEls.forEach(function(el) { el.classList.remove("selected"); });
+      li.classList.add("selected");
+      loadLessonContent(savedLesson);
+
       // If admin chose Quiz, immediately replace the new file with a quiz template and open quiz editor
       if (makeQuiz) {
         // Build initial quiz HTML wrapper with an empty questions array inside a script tag
@@ -1069,6 +1075,8 @@ function addLessonEditor(lesson, container) {
       editBtn.disabled = false;
       editBtn.style.display = 'inline-block';
     }
+    // Reload the original lesson content
+    loadLessonContent(lesson);
   };
 
   // Save handler: disable buttons, show inline status, perform save, then re-enable or reload
