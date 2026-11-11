@@ -11,10 +11,30 @@ from flask_cors import CORS
 # 2. Save it as serviceAccountKey.json in your project root (or set GOOGLE_APPLICATION_CREDENTIALS env var)
 # 3. Replace 'your-collection-name' with your Firestore collection name (e.g. 'lessons')
 from google.cloud import firestore
+from google.cloud import storage
+from urllib.parse import quote
 firestore_client = firestore.Client()
 LESSONS_COLLECTION = 'lessons'  # Change if you use a different collection name
 
+# --- Firebase Storage (for uploaded PowerPoint files) ---
+# Uses the same service account credentials as Firestore.
+# Storage must be enabled in Firebase Console > Build > Storage.
+STORAGE_BUCKET = os.environ.get("FIREBASE_STORAGE_BUCKET", "the-getaway-academy.firebasestorage.app")
+storage_client = storage.Client()
+
+# Microsoft's Office Online viewer (used to display the slides) only accepts
+# PowerPoint files up to 10 MB, so enforce the same limit here.
+MAX_SLIDESHOW_BYTES = 10 * 1024 * 1024
+SLIDESHOW_TYPES = {
+    ".pptx": "application/vnd.openxmlformats-officedocument.presentationml.presentation",
+    ".ppsx": "application/vnd.openxmlformats-officedocument.presentationml.slideshow",
+    ".ppt": "application/vnd.ms-powerpoint",
+    ".pps": "application/vnd.ms-powerpoint",
+}
+
 app = Flask(__name__)
+# Reject oversized request bodies early (limit + small allowance for form overhead)
+app.config["MAX_CONTENT_LENGTH"] = MAX_SLIDESHOW_BYTES + 1024 * 1024
 
 # Allow front‑end origins; during dev you can use "*" and tighten later
 CORS(app, resources={r"/*": {
@@ -79,6 +99,55 @@ def create_lesson():
         "html": initial_html
     })
     return jsonify({"id": safe, "title": title}), 201
+
+@app.post("/api/uploads/slideshow")
+def upload_slideshow():
+    """Upload a PowerPoint file to Firebase Storage and return a public URL.
+
+    Expects multipart/form-data with a single field named "file".
+    """
+    if not is_admin(request):
+        abort(403)
+
+    file = request.files.get("file")
+    if file is None or not file.filename:
+        return jsonify({"error": "no file uploaded"}), 400
+
+    original_name = os.path.basename(file.filename.replace("\\", "/"))
+    ext = os.path.splitext(original_name)[1].lower()
+    if ext not in SLIDESHOW_TYPES:
+        return jsonify({"error": "Only PowerPoint files (.pptx, .ppsx, .ppt, .pps) are allowed."}), 400
+
+    data = file.read()
+    if len(data) == 0:
+        return jsonify({"error": "file is empty"}), 400
+    if len(data) > MAX_SLIDESHOW_BYTES:
+        return jsonify({"error": "File is larger than 10 MB."}), 413
+
+    # Keep a readable but safe file name; prefix with a uuid to avoid collisions
+    stem = os.path.splitext(original_name)[0]
+    safe_stem = re.sub(r"[^A-Za-z0-9._-]+", "-", stem).strip("-._") or "slideshow"
+    object_path = f"slideshows/{uuid4().hex}-{safe_stem}{ext}"
+
+    # A Firebase download token makes the file readable via a public URL,
+    # which the Office Online viewer needs in order to fetch it.
+    token = str(uuid4())
+    blob = storage_client.bucket(STORAGE_BUCKET).blob(object_path)
+    blob.metadata = {"firebaseStorageDownloadTokens": token}
+    blob.content_disposition = f'inline; filename="{safe_stem}{ext}"'
+    blob.upload_from_string(data, content_type=SLIDESHOW_TYPES[ext])
+
+    public_url = (
+        f"https://firebasestorage.googleapis.com/v0/b/{STORAGE_BUCKET}/o/"
+        f"{quote(object_path, safe='')}?alt=media&token={token}"
+    )
+    return jsonify({"url": public_url, "name": original_name}), 201
+
+
+@app.errorhandler(413)
+def too_large(_e):
+    return jsonify({"error": "File is larger than 10 MB."}), 413
+
 
 @app.delete("/api/lessons/<lesson_id>")
 def delete_lesson(lesson_id):

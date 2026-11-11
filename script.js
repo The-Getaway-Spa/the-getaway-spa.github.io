@@ -916,6 +916,91 @@ function addLessonEditor(lesson, container) {
     }
   }));
 
+  // Upload PowerPoint button (from the computer)
+  // Accept list uses both extensions and MIME types so the file picker
+  // works on Windows and macOS (Safari/Chrome on Mac grey out files otherwise).
+  const pptInput = document.createElement('input');
+  pptInput.type = 'file';
+  pptInput.accept = [
+    '.pptx', '.ppsx', '.ppt', '.pps',
+    'application/vnd.openxmlformats-officedocument.presentationml.presentation',
+    'application/vnd.openxmlformats-officedocument.presentationml.slideshow',
+    'application/vnd.ms-powerpoint'
+  ].join(',');
+  pptInput.style.display = 'none';
+  toolbar.appendChild(pptInput);
+
+  const uploadStatus = document.createElement('span');
+  uploadStatus.style.cssText = 'align-self:center;font-size:0.9rem;color:#333;';
+
+  // Remember where the caret was so the slideshow lands there after the upload finishes
+  let savedRange = null;
+  const uploadBtn = createToolbarBtn("📤 Upload PowerPoint", () => {
+    const sel = window.getSelection();
+    savedRange = (sel.rangeCount > 0 && editor.contains(sel.getRangeAt(0).commonAncestorContainer))
+      ? sel.getRangeAt(0).cloneRange()
+      : null;
+    pptInput.value = '';
+    pptInput.click();
+  });
+  toolbar.appendChild(uploadBtn);
+  toolbar.appendChild(uploadStatus);
+
+  pptInput.addEventListener('change', async () => {
+    const file = pptInput.files && pptInput.files[0];
+    if (!file) return;
+
+    const ext = (file.name.match(/\.[^.]+$/) || [''])[0].toLowerCase();
+    if (ext === '.key') {
+      alert('Keynote files are not supported. In Keynote, choose File > Export To > PowerPoint, then upload the .pptx file.');
+      return;
+    }
+    if (!['.pptx', '.ppsx', '.ppt', '.pps'].includes(ext)) {
+      alert('Please choose a PowerPoint file (.pptx, .ppsx, .ppt or .pps).');
+      return;
+    }
+    if (file.size > MAX_SLIDESHOW_MB * 1024 * 1024) {
+      alert(`That file is ${(file.size / 1024 / 1024).toFixed(1)} MB. The limit is ${MAX_SLIDESHOW_MB} MB. Try compressing the pictures in PowerPoint (File > Compress Pictures) and upload again.`);
+      return;
+    }
+
+    uploadBtn.disabled = true;
+    uploadStatus.textContent = `Uploading ${file.name}...`;
+    try {
+      const form = new FormData();
+      form.append('file', file, file.name);
+      const res = await fetch(`${API_BASE}/api/uploads/slideshow`, {
+        method: 'POST',
+        headers: { 'X-User-Role': role }, // don't set Content-Type; the browser adds the multipart boundary
+        body: form
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok || !data.url) {
+        throw new Error(data.error || `Upload failed (${res.status})`);
+      }
+
+      const block = buildSlideshowEmbed(data.url, data.name || file.name);
+      if (savedRange) {
+        savedRange.collapse(false);
+        savedRange.insertNode(block);
+      } else {
+        editor.appendChild(block);
+      }
+      // Add an empty paragraph after so the admin can keep typing below the slideshow
+      const after = document.createElement('p');
+      after.appendChild(document.createElement('br'));
+      block.after(after);
+      editor.focus();
+      uploadStatus.textContent = 'Uploaded. Click "Save Changes" to keep it in the lesson.';
+    } catch (err) {
+      console.error('Slideshow upload failed', err);
+      uploadStatus.textContent = '';
+      alert(`Upload failed: ${err.message}`);
+    } finally {
+      uploadBtn.disabled = false;
+    }
+  });
+
   editorPanel.insertBefore(toolbar, editor);
 
   // Create buttons container
@@ -1002,6 +1087,40 @@ function addLessonEditor(lesson, container) {
   // Focus the editor so admin can start editing immediately
   editor.focus();
 } // end function addLessonEditor
+
+// Max PowerPoint size accepted by Microsoft's Office Online viewer (must match app.py)
+const MAX_SLIDESHOW_MB = 10;
+
+// Build an embedded slideshow block for an uploaded PowerPoint file.
+// Uses Microsoft's free Office Online viewer, which runs in any modern browser
+// (Windows, Mac, phones), so viewers don't need PowerPoint installed.
+function buildSlideshowEmbed(fileUrl, fileName) {
+  const wrapper = document.createElement('div');
+  wrapper.className = 'slideshow-embed';
+  wrapper.contentEditable = 'false'; // treat as one block inside the editor
+  wrapper.style.cssText = 'margin:12px 0;max-width:800px;';
+
+  const frameBox = document.createElement('div');
+  frameBox.style.cssText = 'position:relative;width:100%;padding-top:59.3%;'; // ~16:9 plus viewer toolbar
+  const iframe = document.createElement('iframe');
+  iframe.src = 'https://view.officeapps.live.com/op/embed.aspx?src=' + encodeURIComponent(fileUrl);
+  iframe.title = fileName || 'Slideshow';
+  iframe.setAttribute('frameborder', '0');
+  iframe.allowFullscreen = true;
+  iframe.style.cssText = 'position:absolute;top:0;left:0;width:100%;height:100%;border:0;border-radius:4px;';
+  frameBox.appendChild(iframe);
+  wrapper.appendChild(frameBox);
+
+  const link = document.createElement('a');
+  link.href = fileUrl;
+  link.target = '_blank';
+  link.rel = 'noopener';
+  link.textContent = `⬇ Download ${fileName || 'slideshow'}`;
+  link.style.cssText = 'display:inline-block;margin-top:6px;font-size:0.9rem;';
+  wrapper.appendChild(link);
+
+  return wrapper;
+}
 
 // Helper to extract YouTube video ID
 function extractYouTubeId(url) {
