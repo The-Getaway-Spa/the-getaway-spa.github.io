@@ -4,6 +4,8 @@ import re
 from flask import Flask, request, jsonify, abort
 from uuid import uuid4
 from flask_cors import CORS
+from google.oauth2 import id_token as google_id_token
+from google.auth.transport import requests as google_requests
 
 # --- Firestore integration ---
 # Install: pip install google-cloud-firestore
@@ -39,12 +41,40 @@ app.config["MAX_CONTENT_LENGTH"] = MAX_SLIDESHOW_BYTES + 1024 * 1024
 # Allow front‑end origins; during dev you can use "*" and tighten later
 CORS(app, resources={r"/*": {
     "origins": ["http://localhost:8000", "http://localhost:3000", "http://getaway-academy.duckdns.org", "https://the-getaway-spa.github.io"],
-    "allow_headers": ["Content-Type", "X-User-Role"]
+    "allow_headers": ["Content-Type", "Authorization"]
 }})
 
+# --- Admin check ---
+# The front end sends the signed-in user's Firebase ID token as
+# "Authorization: Bearer <token>". We verify Google's signature on it, then
+# check the email against this list. Override with an ADMIN_EMAILS env var
+# (comma-separated) on Render to change admins without a code change.
+FIREBASE_PROJECT_ID = os.environ.get("FIREBASE_PROJECT_ID", "the-getaway-academy")
+ADMIN_EMAILS = {
+    e.strip().lower()
+    for e in os.environ.get("ADMIN_EMAILS", "info@mygetawayspa.com,angeldmomo@gmail.com").split(",")
+    if e.strip()
+}
+_google_request = google_requests.Request()
+
+
 def is_admin(request):
-    # For now, trust a header from your front end; later you can validate Firebase ID tokens
-    return request.headers.get("X-User-Role") == "admin"
+    header = request.headers.get("Authorization", "")
+    if not header.startswith("Bearer "):
+        return False
+    try:
+        claims = google_id_token.verify_firebase_token(
+            header[len("Bearer "):].strip(),
+            _google_request,
+            audience=FIREBASE_PROJECT_ID,
+            clock_skew_in_seconds=10,
+        )
+    except Exception as e:  # expired, malformed, wrong signature, etc.
+        app.logger.info("Rejected admin token: %s", e)
+        return False
+    if not claims or claims.get("iss") != f"https://securetoken.google.com/{FIREBASE_PROJECT_ID}":
+        return False
+    return (claims.get("email") or "").lower() in ADMIN_EMAILS
 
 @app.get("/api/lessons")
 def list_lessons():

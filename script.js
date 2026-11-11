@@ -5,6 +5,22 @@ const role = sessionStorage.getItem("role");
 const lessonList = document.getElementById("lesson-list");
 const addLessonBtn = document.getElementById("add-lesson-btn");
 
+// Headers for admin API calls. auth-session.js (an ES module that loads after
+// this script) provides window.appAuth; the backend verifies the Firebase ID
+// token, so admin actions can't be faked by editing sessionStorage.
+function whenAuthReady() {
+  if (window.appAuth) return Promise.resolve(window.appAuth);
+  return new Promise((resolve) => {
+    window.addEventListener('app-auth-ready', () => resolve(window.appAuth), { once: true });
+  });
+}
+async function adminHeaders(extra = {}) {
+  const appAuth = await whenAuthReady();
+  const token = await appAuth.getIdToken();
+  if (!token) throw new Error('You are signed out. Please log in again.');
+  return { ...extra, Authorization: `Bearer ${token}` };
+}
+
 // --------------------
 // Auth / role handling
 // --------------------
@@ -38,7 +54,10 @@ if (usernameVal && usernameDisplay) {
 }
 
 const logoutBtn = document.getElementById('logoutBtn');
-function logoutUser() {
+async function logoutUser() {
+  try {
+    if (window.appAuth) await window.appAuth.signOut();
+  } catch (e) { console.error('Sign-out failed', e); }
   try {
     sessionStorage.removeItem('loggedIn');
     sessionStorage.removeItem('role');
@@ -129,12 +148,17 @@ function createLessonListItem(lesson) {
 
 async function removeLesson(lessonId, liElement) {
   if (!confirm("Remove this lesson?")) return;
-  const res = await fetch(API_BASE + '/api/lessons/' + encodeURIComponent(lessonId), {
-    method: "DELETE",
-    headers: {
-      "X-User-Role": role
-    }
-  });
+  let res;
+  try {
+    res = await fetch(API_BASE + '/api/lessons/' + encodeURIComponent(lessonId), {
+      method: "DELETE",
+      headers: await adminHeaders()
+    });
+  } catch (e) {
+    console.error(e);
+    alert("Failed to remove lesson.");
+    return;
+  }
   if (!res.ok && res.status !== 204) {
     alert("Failed to remove lesson.");
     return;
@@ -196,10 +220,7 @@ if (addLessonBtn && role === "admin") {
     try {
       const res = await fetch(`${API_BASE}/api/lessons`, {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "X-User-Role": role
-        },
+        headers: await adminHeaders({ "Content-Type": "application/json" }),
         body: JSON.stringify({ name })
       });
 
@@ -549,7 +570,7 @@ async function persistLessonOrder(ids) {
   try {
     const res = await fetch(`${API_BASE}/api/lessons/reorder`, {
       method: 'PUT',
-      headers: { 'Content-Type': 'application/json', 'X-User-Role': role },
+      headers: await adminHeaders({ 'Content-Type': 'application/json' }),
       body: JSON.stringify({ order: ids })
     });
     if (!res.ok) throw new Error('Server rejected reorder');
@@ -971,7 +992,7 @@ function addLessonEditor(lesson, container) {
       form.append('file', file, file.name);
       const res = await fetch(`${API_BASE}/api/uploads/slideshow`, {
         method: 'POST',
-        headers: { 'X-User-Role': role }, // don't set Content-Type; the browser adds the multipart boundary
+        headers: await adminHeaders(), // don't set Content-Type; the browser adds the multipart boundary
         body: form
       });
       const data = await res.json().catch(() => ({}));
@@ -1461,10 +1482,7 @@ async function saveLessonContent(lesson, html, statusDiv) {
 
     const res = await fetch(url, {
       method: "PUT",
-      headers: {
-        "Content-Type": "application/json",
-        "X-User-Role": role
-      },
+      headers: await adminHeaders({ "Content-Type": "application/json" }),
       body: JSON.stringify(body)
     });
 
