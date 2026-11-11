@@ -900,13 +900,13 @@ function addLessonEditor(lesson, container) {
   toolbar.appendChild(createToolbarBtn("Italic", () => insertElement("em", "italic text")));
 
   // Image button
-  toolbar.appendChild(createToolbarBtn("🖼 Insert Image", () => {
+  toolbar.appendChild(createToolbarBtn("🖼 Image from URL", () => {
     const url = prompt("Enter image URL:");
     if (url) insertImage(url);
   }));
 
   // Video button
-  toolbar.appendChild(createToolbarBtn("🎬 Insert Video", () => {
+  toolbar.appendChild(createToolbarBtn("🎬 YouTube Video", () => {
     const url = prompt("Enter YouTube video URL (e.g., https://www.youtube.com/watch?v=...):");
     if (url) insertVideo(url);
   }));
@@ -937,57 +937,119 @@ function addLessonEditor(lesson, container) {
     }
   }));
 
-  // Upload PowerPoint button (from the computer)
-  // Accept list uses both extensions and MIME types so the file picker
-  // works on Windows and macOS (Safari/Chrome on Mac grey out files otherwise).
-  const pptInput = document.createElement('input');
-  pptInput.type = 'file';
-  pptInput.accept = [
-    '.pptx', '.ppsx', '.ppt', '.pps',
-    'application/vnd.openxmlformats-officedocument.presentationml.presentation',
-    'application/vnd.openxmlformats-officedocument.presentationml.slideshow',
-    'application/vnd.ms-powerpoint'
-  ].join(',');
-  pptInput.style.display = 'none';
-  toolbar.appendChild(pptInput);
-
+  // --------------------------------------------------------------
+  // "Upload from computer" buttons (PowerPoint, images, videos)
+  // --------------------------------------------------------------
   const uploadStatus = document.createElement('span');
   uploadStatus.style.cssText = 'align-self:center;font-size:0.9rem;color:#333;';
 
-  // Remember where the caret was so the slideshow lands there after the upload finishes
-  let savedRange = null;
-  const uploadBtn = createToolbarBtn("📤 Upload PowerPoint", () => {
-    const sel = window.getSelection();
-    savedRange = (sel.rangeCount > 0 && editor.contains(sel.getRangeAt(0).commonAncestorContainer))
-      ? sel.getRangeAt(0).cloneRange()
-      : null;
-    pptInput.value = '';
-    pptInput.click();
+  // Shared logic: remember the caret, open the file picker, check the file,
+  // upload it, then insert the resulting block where the caret was.
+  // The accept list uses both extensions and MIME types so the picker works on
+  // Windows and macOS (Safari/Chrome on Mac grey out files otherwise).
+  const addUploadButton = ({ label, accept, checkFile, upload, buildBlock }) => {
+    const input = document.createElement('input');
+    input.type = 'file';
+    input.accept = accept.join(',');
+    input.style.display = 'none';
+
+    let savedRange = null;
+    const btn = createToolbarBtn(label, () => {
+      const sel = window.getSelection();
+      savedRange = (sel.rangeCount > 0 && editor.contains(sel.getRangeAt(0).commonAncestorContainer))
+        ? sel.getRangeAt(0).cloneRange()
+        : null;
+      input.value = '';
+      input.click();
+    });
+    toolbar.appendChild(input);
+    toolbar.appendChild(btn);
+
+    input.addEventListener('change', async () => {
+      const file = input.files && input.files[0];
+      if (!file) return;
+      const problem = checkFile(file);
+      if (problem) {
+        alert(problem);
+        return;
+      }
+
+      btn.disabled = true;
+      uploadStatus.textContent = `Uploading ${file.name}...`;
+      try {
+        const url = await upload(file, (pct) => {
+          uploadStatus.textContent = `Uploading ${file.name}... ${pct}%`;
+        });
+        const block = buildBlock(url, file.name);
+        if (savedRange) {
+          savedRange.collapse(false);
+          savedRange.insertNode(block);
+        } else {
+          editor.appendChild(block);
+        }
+        // Add an empty paragraph after so the admin can keep typing below it
+        const after = document.createElement('p');
+        after.appendChild(document.createElement('br'));
+        block.after(after);
+        editor.focus();
+        uploadStatus.textContent = 'Uploaded. Click "Save Changes" to keep it in the lesson.';
+      } catch (err) {
+        console.error('Upload failed', err);
+        uploadStatus.textContent = '';
+        alert(`Upload failed: ${err.message}`);
+      } finally {
+        btn.disabled = false;
+      }
+    });
+  };
+
+  // Images and videos upload straight from the browser to Firebase Storage
+  // (no size/time limits from the Render server); Storage rules check the admin.
+  addUploadButton({
+    label: '📤 Upload Image',
+    accept: [...Object.keys(UPLOAD_IMAGE_TYPES), ...new Set(Object.values(UPLOAD_IMAGE_TYPES))],
+    checkFile: (file) => checkMediaFile(file, UPLOAD_IMAGE_TYPES, MAX_IMAGE_MB, 'image'),
+    upload: (file, onProgress) => uploadMediaFile(file, 'image', UPLOAD_IMAGE_TYPES, onProgress),
+    buildBlock: (url, name) => {
+      const img = document.createElement('img');
+      img.src = url;
+      img.alt = name.replace(/\.[^.]+$/, '');
+      img.style.cssText = 'max-width:100%;height:auto;margin:8px 0;border-radius:4px;';
+      return img;
+    }
   });
-  toolbar.appendChild(uploadBtn);
-  toolbar.appendChild(uploadStatus);
 
-  pptInput.addEventListener('change', async () => {
-    const file = pptInput.files && pptInput.files[0];
-    if (!file) return;
+  addUploadButton({
+    label: '📤 Upload Video',
+    accept: [...Object.keys(UPLOAD_VIDEO_TYPES), ...new Set(Object.values(UPLOAD_VIDEO_TYPES))],
+    checkFile: (file) => checkMediaFile(file, UPLOAD_VIDEO_TYPES, MAX_VIDEO_MB, 'video'),
+    upload: (file, onProgress) => uploadMediaFile(file, 'video', UPLOAD_VIDEO_TYPES, onProgress),
+    buildBlock: (url) => buildVideoEmbed(url)
+  });
 
-    const ext = (file.name.match(/\.[^.]+$/) || [''])[0].toLowerCase();
-    if (ext === '.key') {
-      alert('Keynote files are not supported. In Keynote, choose File > Export To > PowerPoint, then upload the .pptx file.');
-      return;
-    }
-    if (!['.pptx', '.ppsx', '.ppt', '.pps'].includes(ext)) {
-      alert('Please choose a PowerPoint file (.pptx, .ppsx, .ppt or .pps).');
-      return;
-    }
-    if (file.size > MAX_SLIDESHOW_MB * 1024 * 1024) {
-      alert(`That file is ${(file.size / 1024 / 1024).toFixed(1)} MB. The limit is ${MAX_SLIDESHOW_MB} MB. Try compressing the pictures in PowerPoint (File > Compress Pictures) and upload again.`);
-      return;
-    }
-
-    uploadBtn.disabled = true;
-    uploadStatus.textContent = `Uploading ${file.name}...`;
-    try {
+  // PowerPoint goes through the backend (it prepares the file for the Office viewer)
+  addUploadButton({
+    label: '📤 Upload PowerPoint',
+    accept: [
+      '.pptx', '.ppsx', '.ppt', '.pps',
+      'application/vnd.openxmlformats-officedocument.presentationml.presentation',
+      'application/vnd.openxmlformats-officedocument.presentationml.slideshow',
+      'application/vnd.ms-powerpoint'
+    ],
+    checkFile: (file) => {
+      const ext = fileExtension(file.name);
+      if (ext === '.key') {
+        return 'Keynote files are not supported. In Keynote, choose File > Export To > PowerPoint, then upload the .pptx file.';
+      }
+      if (!['.pptx', '.ppsx', '.ppt', '.pps'].includes(ext)) {
+        return 'Please choose a PowerPoint file (.pptx, .ppsx, .ppt or .pps).';
+      }
+      if (file.size > MAX_SLIDESHOW_MB * 1024 * 1024) {
+        return `That file is ${(file.size / 1024 / 1024).toFixed(1)} MB. The limit is ${MAX_SLIDESHOW_MB} MB. Try compressing the pictures in PowerPoint (File > Compress Pictures) and upload again.`;
+      }
+      return null;
+    },
+    upload: async (file) => {
       const form = new FormData();
       form.append('file', file, file.name);
       const res = await fetch(`${API_BASE}/api/uploads/slideshow`, {
@@ -999,28 +1061,12 @@ function addLessonEditor(lesson, container) {
       if (!res.ok || !data.url) {
         throw new Error(data.error || `Upload failed (${res.status})`);
       }
-
-      const block = buildSlideshowEmbed(data.url, data.name || file.name);
-      if (savedRange) {
-        savedRange.collapse(false);
-        savedRange.insertNode(block);
-      } else {
-        editor.appendChild(block);
-      }
-      // Add an empty paragraph after so the admin can keep typing below the slideshow
-      const after = document.createElement('p');
-      after.appendChild(document.createElement('br'));
-      block.after(after);
-      editor.focus();
-      uploadStatus.textContent = 'Uploaded. Click "Save Changes" to keep it in the lesson.';
-    } catch (err) {
-      console.error('Slideshow upload failed', err);
-      uploadStatus.textContent = '';
-      alert(`Upload failed: ${err.message}`);
-    } finally {
-      uploadBtn.disabled = false;
-    }
+      return data.url;
+    },
+    buildBlock: (url, name) => buildSlideshowEmbed(url, name)
   });
+
+  toolbar.appendChild(uploadStatus);
 
   editorPanel.insertBefore(toolbar, editor);
 
@@ -1111,6 +1157,71 @@ function addLessonEditor(lesson, container) {
 
 // Max PowerPoint size accepted by Microsoft's Office Online viewer (must match app.py)
 const MAX_SLIDESHOW_MB = 10;
+
+// Image/video uploads (limits must match storage.rules in Firebase)
+const MAX_IMAGE_MB = 10;
+const MAX_VIDEO_MB = 100;
+const UPLOAD_IMAGE_TYPES = {
+  '.jpg': 'image/jpeg', '.jpeg': 'image/jpeg', '.png': 'image/png',
+  '.gif': 'image/gif', '.webp': 'image/webp'
+};
+const UPLOAD_VIDEO_TYPES = {
+  '.mp4': 'video/mp4', '.m4v': 'video/mp4', '.webm': 'video/webm', '.mov': 'video/quicktime'
+};
+
+function fileExtension(name) {
+  return ((name || '').match(/\.[^.]+$/) || [''])[0].toLowerCase();
+}
+
+// Returns an error message for the admin, or null if the file is OK
+function checkMediaFile(file, types, maxMb, kind) {
+  const ext = fileExtension(file.name);
+  if (ext === '.heic' || ext === '.heif') {
+    return "HEIC photos (from iPhone/Mac) don't display in most browsers. On a Mac, open the photo in Preview and choose File > Export > JPEG; on Windows, open it in Photos and use Save as > JPG. Then upload that file.";
+  }
+  if (!types[ext]) {
+    return `Please choose a ${kind} file (${Object.keys(types).join(', ')}).`;
+  }
+  if (file.size > maxMb * 1024 * 1024) {
+    const tip = kind === 'video'
+      ? ' For longer videos, upload them to YouTube (they can be "Unlisted") and use the YouTube Video button instead.'
+      : ' Try resizing or compressing the image first.';
+    return `That file is ${(file.size / 1024 / 1024).toFixed(1)} MB. The limit for ${kind}s is ${maxMb} MB.${tip}`;
+  }
+  return null;
+}
+
+// Upload an image/video directly to Firebase Storage; resolves to its public URL
+async function uploadMediaFile(file, kind, types, onProgress) {
+  const appAuth = await whenAuthReady();
+  // Use the type from the extension: browsers sometimes report an empty or
+  // non-standard type (e.g. for .mov or .webp on Windows)
+  const contentType = types[fileExtension(file.name)];
+  try {
+    return await appAuth.uploadMedia(file, kind, contentType, onProgress);
+  } catch (err) {
+    if (err && err.code === 'storage/unauthorized') {
+      throw new Error('Firebase Storage refused the upload. Make sure you are logged in as an admin, and that the rules in storage.rules have been published in Firebase.');
+    }
+    throw err;
+  }
+}
+
+// Video player block for an uploaded video
+function buildVideoEmbed(fileUrl) {
+  const wrapper = document.createElement('div');
+  wrapper.className = 'video-embed';
+  wrapper.contentEditable = 'false'; // treat as one block inside the editor
+  wrapper.style.cssText = 'margin:12px 0;max-width:800px;';
+  const video = document.createElement('video');
+  video.src = fileUrl;
+  video.controls = true;
+  video.preload = 'metadata';
+  video.setAttribute('playsinline', ''); // play inline on iPhone instead of forcing fullscreen
+  video.style.cssText = 'width:100%;height:auto;border-radius:4px;background:#000;';
+  wrapper.appendChild(video);
+  return wrapper;
+}
 
 // Build an embedded slideshow block for an uploaded PowerPoint file.
 // Uses Microsoft's free Office Online viewer, which runs in any modern browser

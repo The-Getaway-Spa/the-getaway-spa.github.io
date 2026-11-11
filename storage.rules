@@ -1,0 +1,35 @@
+rules_version = '2';
+
+// Firebase Storage security rules for The Getaway Academy.
+// Publish these in Firebase Console > Storage > Rules.
+//
+// - Only admins can upload images/videos from the browser, with type and size limits
+//   (keep the limits in sync with MAX_IMAGE_MB / MAX_VIDEO_MB in script.js).
+// - Nobody can list, overwrite or delete files from the browser.
+// - Students view files through the download links saved in lessons, which
+//   work without any read rule here.
+// - PowerPoint files are uploaded by the backend (app.py), which isn't
+//   affected by these rules.
+service firebase.storage {
+  match /b/{bucket}/o {
+    function isAdmin() {
+      return request.auth != null
+        && request.auth.token.email in ['info@mygetawayspa.com', 'angeldmomo@gmail.com'];
+    }
+
+    match /{fileName} {
+      // Admins need read access so the uploader can fetch the download link
+      allow get: if isAdmin();
+
+      allow create: if isAdmin() && (
+        (fileName.matches('image-.*')
+          && request.resource.contentType.matches('image/(jpeg|png|gif|webp)')
+          && request.resource.size <= 10 * 1024 * 1024)
+        ||
+        (fileName.matches('video-.*')
+          && request.resource.contentType.matches('video/(mp4|webm|quicktime)')
+          && request.resource.size <= 100 * 1024 * 1024)
+      );
+    }
+  }
+}
