@@ -127,7 +127,10 @@ def upload_slideshow():
     # Keep a readable but safe file name; prefix with a uuid to avoid collisions
     stem = os.path.splitext(original_name)[0]
     safe_stem = re.sub(r"[^A-Za-z0-9._-]+", "-", stem).strip("-._") or "slideshow"
-    object_path = f"slideshows/{uuid4().hex}-{safe_stem}{ext}"
+    # Store at the bucket root (no "folder/"): a "/" becomes "%2F" in the Firebase
+    # URL, and the Office Online viewer decodes it, which makes Firebase reject
+    # the request and the viewer show "File not found".
+    object_path = f"slideshow-{uuid4().hex}-{safe_stem}{ext}"
 
     # A Firebase download token makes the file readable via a public URL,
     # which the Office Online viewer needs in order to fetch it.
